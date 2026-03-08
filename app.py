@@ -12,8 +12,8 @@ from datetime import datetime
 #  CONFIG
 # ─────────────────────────────────────────────
 st.set_page_config(
-    page_title="BDO Audit Pro",
-    page_icon="🔷",
+    page_title="Stock Count Pro",
+    page_icon="📦",
     layout="centered",
     initial_sidebar_state="collapsed",
 )
@@ -361,7 +361,7 @@ def inject_local_storage_reader():
     """
     st.components.v1.html("""
     <script>
-    // Read all BDO keys from localStorage and post to parent Streamlit
+    // Read all app keys from localStorage and post to parent Streamlit
     function sendToStreamlit(data) {
         window.parent.postMessage({
             type: "streamlit:setComponentValue",
@@ -385,7 +385,7 @@ def set_local_storage(key: str, value: str):
     """, height=0)
 
 def clear_local_storage():
-    """Clear all BDO keys from localStorage."""
+    """Clear all app keys from localStorage."""
     st.components.v1.html("""
     <script>
     ["bdo_user","bdo_sid","bdo_client","bdo_df","bdo_counter"].forEach(k => localStorage.removeItem(k));
@@ -422,7 +422,7 @@ def render_header(username="", session_id="", is_admin=False):
     sess_pill   = f'<span class="session-pill">📍 {session_id}</span>' if session_id else ""
     st.markdown(f"""
     <div class="app-header">
-        <div class="brand">🔷 BDO <span>Audit Pro</span></div>
+        <div class="brand">📦 Stock <span>Count Pro</span></div>
         <div class="right">{sess_pill}{user_pill}</div>
     </div>""", unsafe_allow_html=True)
 
@@ -491,7 +491,7 @@ if not st.session_state.current_user:
 
     with st.container(border=True):
         section("Sign In")
-        st.markdown("#### Welcome to BDO Audit Pro")
+        st.markdown("#### Welcome to Stock Count Pro")
         username_input = st.text_input("Username", placeholder="your username")
         password_input = st.text_input("Password", type="password", placeholder="••••••••")
         if st.button("Sign In →", use_container_width=True):
@@ -584,21 +584,21 @@ if ls_df and st.session_state.active_sid is None and ls_sid:
 if not st.session_state.active_sid:
     render_header(username=CU, is_admin=IS_ADMIN)
 
-    tabs     = (["  ✨  New Audit  ","  📁  My Audits  ","  ⚙️  Admin Panel  "]
+    tabs     = (["  ✨  New Count  ","  📁  My Sessions  ","  ⚙️  Admin Panel  "]
                 if IS_ADMIN else
-                ["  ✨  New Audit  ","  📁  My Audits  "])
+                ["  ✨  New Count  ","  📁  My Sessions  "])
     tab_objs = st.tabs(tabs)
     t1, t2   = tab_objs[0], tab_objs[1]
 
     with t1:
         with st.container(border=True):
-            section("Start New Count")
-            sid_new    = st.text_input("Session ID", placeholder="e.g. BDO-2026-001")
-            client_new = st.text_input("Client / Location", placeholder="e.g. Warehouse A")
+            section("Start New Stock Count")
+            sid_new    = st.text_input("Session ID", placeholder="e.g. SC-2026-001")
+            client_new = st.text_input("Warehouse / Location", placeholder="e.g. Main Warehouse")
             file_new   = st.file_uploader("Upload Master Sheet (.xlsx)", type=["xlsx"])
             if file_new:
                 st.caption(f"📎 {file_new.name} — ready")
-            if st.button("🚀  Start Audit", use_container_width=True):
+            if st.button("🚀  Start Stock Count", use_container_width=True):
                 if not sid_new:
                     st.warning("Please enter a Session ID.")
                 elif not file_new:
@@ -660,14 +660,14 @@ if not st.session_state.active_sid:
     if IS_ADMIN:
         t3 = tab_objs[2]
         with t3:
-            at1, at2, at3 = st.tabs(["  👥  Users  ","  📋  All Audits  ","  ➕  Add User  "])
+            at1, at2, at3 = st.tabs(["  👥  Users  ","  📋  All Sessions  ","  ➕  Add User  "])
             with at1:
                 with st.container(border=True):
                     section("All Users")
                     for _, u in get_all_users().iterrows():
                         uc1, uc2 = st.columns([4, 1])
                         with uc1:
-                            role = "🔑 Admin" if u["is_admin"] else "👤 Auditor"
+                            role = "🔑 Admin" if u["is_admin"] else "👤 Counter"
                             st.markdown(f'<div class="user-row"><div><div class="user-name">{u["username"]}</div><div class="user-meta">{role} · {u["created"] or "—"}</div></div></div>', unsafe_allow_html=True)
                         with uc2:
                             if u["username"] != CU:
@@ -678,7 +678,7 @@ if not st.session_state.active_sid:
                                 st.caption("(you)")
             with at2:
                 with st.container(border=True):
-                    section("All Audit Sessions")
+                    section("All Sessions")
                     all_sess = get_all_sessions_admin()
                     if all_sess.empty:
                         st.info("No sessions.")
@@ -733,7 +733,7 @@ render_header(username=CU, session_id=sid, is_admin=IS_ADMIN)
 sync_status(st.session_state.save_counter)
 
 with st.container(border=True):
-    section("Session Overview")
+    section("Count Overview")
     m1, m2, m3 = st.columns(3)
     m1.markdown(f'<div class="stat-box"><div class="stat-label">Total</div><div class="stat-value">{total}</div></div>', unsafe_allow_html=True)
     m2.markdown(f'<div class="stat-box"><div class="stat-label">Counted</div><div class="stat-value">{counted}</div></div>', unsafe_allow_html=True)
@@ -745,7 +745,7 @@ with st.container(border=True):
     </div>""", unsafe_allow_html=True)
 
 with st.container(border=True):
-    section("Count Entry")
+    section("Enter Count")
     search = st.text_input("Search", placeholder="🔍  Product name or code…", label_visibility="collapsed")
 
     if search and len(search.strip()) >= 1:
@@ -860,7 +860,7 @@ if recent_mask.any():
     recent = (df.loc[recent_mask, ["product name","product code","difference","last_updated"]]
                 .sort_values("last_updated", ascending=False).head(5))
     with st.container(border=True):
-        section("Recent Activity")
+        section("Recent Counts")
         for _, r in recent.iterrows():
             d = int(r["difference"])
             badge = (f'<span class="badge-pos">+{d}</span>' if d > 0 else
@@ -881,9 +881,9 @@ fa1, fa2, fa3 = st.columns(3)
 with fa1:
     out_all = io.BytesIO()
     with pd.ExcelWriter(out_all, engine="openpyxl") as w:
-        df.to_excel(w, index=False, sheet_name="Audit")
+        df.to_excel(w, index=False, sheet_name="Stock Count")
     st.download_button("📤 Export All", out_all.getvalue(),
-        file_name=f"{sid}_Audit_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+        file_name=f"{sid}_StockCount_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True)
 
@@ -905,7 +905,7 @@ with fa3:
         st.rerun()
 
 st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-if st.button("🚪 Save & Close Session", use_container_width=True):
+if st.button("🚪 Save & Close", use_container_width=True):
     save_audit_db(sid, CU, st.session_state.get("active_client",""), df)
     clear_local_storage()
     set_local_storage("bdo_user", CU)  # keep login, clear audit
