@@ -236,34 +236,30 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
 
 
 # ─────────────────────────────────────────────
+#  SECURITY
+# ─────────────────────────────────────────────
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.strip().encode()).hexdigest()
+
+
+# ─────────────────────────────────────────────
 #  DATABASE — SUPABASE (PostgreSQL)
 # ─────────────────────────────────────────────
-@st.cache_resource
 def get_db():
-    """Single persistent connection pool via st.cache_resource."""
     url = st.secrets["DATABASE_URL"]
-    conn = psycopg2.connect(url, sslmode="require")
+    conn = psycopg2.connect(url, connect_timeout=10)
     conn.autocommit = True
     return conn
 
 def run(sql, params=(), fetch=None):
-    """Execute a query. fetch=None|'one'|'all'."""
     conn = get_db()
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(sql, params)
-        if fetch == "one":  return cur.fetchone()
-        if fetch == "all":  return cur.fetchall()
-    except Exception:
-        # Connection may have timed out — reconnect once
-        conn = psycopg2.connect(st.secrets["DATABASE_URL"], sslmode="require")
-        conn.autocommit = True
-        # Update cache
-        st.cache_resource.clear()
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute(sql, params)
-        if fetch == "one":  return cur.fetchone()
-        if fetch == "all":  return cur.fetchall()
+        if fetch == "one": return cur.fetchone()
+        if fetch == "all": return cur.fetchall()
+    finally:
+        conn.close()
 
 def init_db():
     run("""
@@ -292,13 +288,6 @@ def init_db():
         )
 
 init_db()
-
-
-# ─────────────────────────────────────────────
-#  SECURITY
-# ─────────────────────────────────────────────
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.strip().encode()).hexdigest()
 
 
 # ─────────────────────────────────────────────
