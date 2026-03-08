@@ -826,25 +826,19 @@ st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 fa1, fa2, fa3 = st.columns(3)
 
 with fa1:
-    @st.cache_data(show_spinner=False)
-    def build_excel_all(_df, _sid):
-        out = io.BytesIO()
-        with pd.ExcelWriter(out, engine="openpyxl") as w:
-            _df.to_excel(w, index=False, sheet_name="Audit")
-        return out.getvalue()
-    st.download_button("📤 Export All", build_excel_all(df, sid),
+    out_all = io.BytesIO()
+    with pd.ExcelWriter(out_all, engine="openpyxl") as w:
+        df.to_excel(w, index=False, sheet_name="Audit")
+    st.download_button("📤 Export All", out_all.getvalue(),
         file_name=f"{sid}_Audit_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True)
 
 with fa2:
-    @st.cache_data(show_spinner=False)
-    def build_excel_var(_df, _sid):
-        out = io.BytesIO()
-        with pd.ExcelWriter(out, engine="openpyxl") as w:
-            _df[_df["difference"] != 0].to_excel(w, index=False, sheet_name="Variances")
-        return out.getvalue()
-    st.download_button("⚠️ Variances", build_excel_var(df, sid),
+    out_var = io.BytesIO()
+    with pd.ExcelWriter(out_var, engine="openpyxl") as w:
+        df[df["difference"] != 0].to_excel(w, index=False, sheet_name="Variances")
+    st.download_button("⚠️ Variances", out_var.getvalue(),
         file_name=f"{sid}_Variances_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True)
