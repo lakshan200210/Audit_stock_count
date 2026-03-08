@@ -569,10 +569,11 @@ function refreshRecent() {
 }
 
 // ─────────────────────────────────────────────
-//  SYNC TO CLOUD — sends JSON to Streamlit
+//  SYNC TO CLOUD — POST directly to Supabase REST
+//  Works from inside iframe, no Streamlit needed
 // ─────────────────────────────────────────────
 async function syncToCloud(auto = false) {
-  const sid = localStorage.getItem('sc_sid');
+  const sid = localStorage.getItem('sc_sid') || (window.__SC_SID__ || '');
   if (!sid) return;
 
   setSyncStatus('syncing');
@@ -581,25 +582,49 @@ async function syncToCloud(auto = false) {
   btn.disabled = true;
 
   try {
-    const data = JSON.stringify(products);
-    // POST to Streamlit app with ?action=sync
-    const streamlitBase = window.location.origin;
-    const resp = await fetch(`${streamlitBase}/?action=sync&sid=${encodeURIComponent(sid)}&data=${encodeURIComponent(data)}`, {
-      method: 'GET',
-      signal: AbortSignal.timeout(8000)
+    const supabaseUrl = window.__SC_SUPABASE_URL__ || '';
+    const supabaseKey = window.__SC_SUPABASE_KEY__ || '';
+    const data        = JSON.stringify(products);
+    const now         = new Date().toISOString().slice(0,16).replace('T',' ');
+    const username    = window.__SC_USER__ || localStorage.getItem('sc_user') || '';
+    const location    = window.__SC_LOCATION__ || localStorage.getItem('sc_location') || '';
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('No Supabase credentials');
+    }
+
+    // Upsert directly to Supabase via REST API
+    const resp = await fetch(`${supabaseUrl}/rest/v1/stock_sessions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'apikey':        supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Prefer':        'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        sid:      sid,
+        username: username,
+        location: location,
+        data:     data,
+        updated:  now
+      }),
+      signal: AbortSignal.timeout(10000)
     });
 
-    if (resp.ok || resp.status < 500) {
+    if (resp.ok || resp.status === 201 || resp.status === 200) {
       saveCount_counter = 0;
       localStorage.setItem('sc_counter', '0');
       setSyncStatus('ok');
-      showToast(auto ? `☁️ Auto-synced to cloud!` : `☁️ Synced to cloud!`);
+      showToast(auto ? '☁️ Auto-synced to cloud!' : '☁️ Synced to cloud!');
     } else {
-      throw new Error('Server error');
+      const err = await resp.text();
+      throw new Error(`HTTP ${resp.status}: ${err}`);
     }
   } catch(e) {
     setSyncStatus('offline');
-    showToast('📵 Offline — data saved locally, will sync when connected');
+    showToast('📵 Saved locally — will sync when connected');
+    console.error('Sync error:', e);
   }
 
   btn.textContent = '☁️ Sync to Cloud';

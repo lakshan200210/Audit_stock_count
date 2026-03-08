@@ -254,11 +254,30 @@ def render_counting_page(sid, location, username, data_json):
 
     # ── KEY FIX: inject data at very top of <head> BEFORE any other script runs ──
     # This means window.__SC_* variables exist before init() is called
+
+    # Build Supabase REST endpoint from DATABASE_URL
+    # postgresql://postgres.xxxxx:pass@aws-0-region.pooler.supabase.com:6543/postgres
+    # → https://xxxxx.supabase.co
+    db_url    = st.secrets.get("DATABASE_URL", "")
+    supabase_url  = ""
+    supabase_key  = st.secrets.get("SUPABASE_ANON_KEY", "")
+    # Try to extract project ref from pooler URL
+    try:
+        # pooler format: postgres.PROJECTREF:pass@...
+        import re
+        m = re.search(r'postgres\.([a-z0-9]+):', db_url)
+        if m:
+            supabase_url = f"https://{m.group(1)}.supabase.co"
+    except Exception:
+        pass
+
     early_inject = f"""<script>
-window.__SC_SID__      = '{sid_safe}';
-window.__SC_LOCATION__ = '{location_safe}';
-window.__SC_USER__     = '{username_safe}';
-window.__SC_DATA__     = JSON.parse(atob('{data_b64}'));
+window.__SC_SID__           = '{sid_safe}';
+window.__SC_LOCATION__      = '{location_safe}';
+window.__SC_USER__          = '{username_safe}';
+window.__SC_DATA__          = JSON.parse(atob('{data_b64}'));
+window.__SC_SUPABASE_URL__  = '{supabase_url}';
+window.__SC_SUPABASE_KEY__  = '{supabase_key}';
 </script>"""
     counting_html = counting_html.replace("<head>", "<head>\n" + early_inject, 1)
 
