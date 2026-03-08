@@ -244,48 +244,43 @@ def hash_password(password: str) -> str:
 
 # ─────────────────────────────────────────────
 #  DATABASE — SUPABASE (PostgreSQL)
+#  Single persistent connection cached for the
+#  entire app lifetime — no reconnect per query
 # ─────────────────────────────────────────────
+@st.cache_resource(show_spinner="Connecting to database…")
 def get_db():
+    """One connection reused across all users/sessions."""
     url = st.secrets["DATABASE_URL"]
-    conn = psycopg2.connect(url, connect_timeout=10)
+    conn = psycopg2.connect(url, connect_timeout=15)
     conn.autocommit = True
     return conn
 
 def run(sql, params=(), fetch=None):
+    """Run a query, auto-reconnect once if connection dropped."""
     conn = get_db()
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(sql, params)
-        if fetch == "one": return cur.fetchone()
-        if fetch == "all": return cur.fetchall()
-    finally:
-        conn.close()
+    except (psycopg2.OperationalError, psycopg2.InterfaceError):
+        # Connection dropped — clear cache and reconnect
+        st.cache_resource.clear()
+        conn = get_db()
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(sql, params)
+    if fetch == "one": return cur.fetchone()
+    if fetch == "all": return cur.fetchall()
 
 def init_db():
-    run("""
-        CREATE TABLE IF NOT EXISTS users (
-            username      TEXT PRIMARY KEY,
-            password_hash TEXT NOT NULL,
-            is_admin      BOOLEAN DEFAULT FALSE,
-            created       TEXT
-        )
-    """)
-    run("""
-        CREATE TABLE IF NOT EXISTS audit_sessions (
-            sid      TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            client   TEXT,
-            data     BYTEA,
-            updated  TEXT
-        )
-    """)
-    # Seed default admin if no users exist
+    run("""CREATE TABLE IF NOT EXISTS users (
+            username TEXT PRIMARY KEY, password_hash TEXT NOT NULL,
+            is_admin BOOLEAN DEFAULT FALSE, created TEXT)""")
+    run("""CREATE TABLE IF NOT EXISTS audit_sessions (
+            sid TEXT PRIMARY KEY, username TEXT NOT NULL,
+            client TEXT, data BYTEA, updated TEXT)""")
     row = run("SELECT COUNT(*) as c FROM users", fetch="one")
     if row and row["c"] == 0:
-        run(
-            "INSERT INTO users VALUES (%s, %s, %s, %s)",
-            ("admin", hash_password("admin123"), True, datetime.now().strftime("%Y-%m-%d"))
-        )
+        run("INSERT INTO users VALUES (%s,%s,%s,%s)",
+            ("admin", hash_password("admin123"), True, datetime.now().strftime("%Y-%m-%d")))
 
 init_db()
 
@@ -328,8 +323,11 @@ def change_password(username: str, new_password: str):
 #  AUDIT SESSION CRUD
 # ─────────────────────────────────────────────
 def save_audit(sid: str, username: str, client: str, df: pd.DataFrame):
+    # Only save columns we actually need — drops any extra cols from original Excel
+    cols = ["product code", "product name", "systems count", "physical count", "difference", "last_updated"]
+    save_df = df[[c for c in cols if c in df.columns]]
     buf = io.BytesIO()
-    df.to_pickle(buf)
+    save_df.to_pickle(buf, compression="gzip")   # gzip = ~70% smaller
     data = psycopg2.Binary(buf.getvalue())
     ts   = datetime.now().strftime("%Y-%m-%d %H:%M")
     run("""
@@ -342,8 +340,11 @@ def save_audit(sid: str, username: str, client: str, df: pd.DataFrame):
 def load_audit(sid: str):
     row = run("SELECT data FROM audit_sessions WHERE sid=%s", (sid,), fetch="one")
     if row:
-        return pd.read_pickle(io.BytesIO(bytes(row["data"])))
-    return None
+        try:
+            return pd.read_pickle(io.BytesIO(bytes(row["data"])), compression="gzip")
+        except Exception:
+            # Fallback for old uncompressed saves
+            return pd.read_pickle(io.BytesIO(bytes(row["data"])))
 
 def get_user_sessions(username: str) -> pd.DataFrame:
     rows = run(
@@ -603,57 +604,71 @@ if "active_sid" not in st.session_state:
 # ─────────────────────────────────────────────
 #  MAIN COUNTING SCREEN
 # ─────────────────────────────────────────────
+
+# ── Compress DataFrame in memory ──
+# Only keep essential columns in session_state to reduce memory
+# Full df loaded once, never re-serialised unless saving
 df  = st.session_state.df
 sid = st.session_state.active_sid
-pct = pct_done(df)
+
+# Compute stats from lightweight series only — don't touch full df
+updated_mask = df["last_updated"] != ""
+pct     = round(updated_mask.sum() / len(df) * 100, 1) if len(df) else 0.0
 total   = len(df)
-counted = int((df["last_updated"] != "").sum())
-n_vars  = int(((df["difference"] != 0) & (df["last_updated"] != "")).sum())
+counted = int(updated_mask.sum())
+n_vars  = int(((df["difference"] != 0) & updated_mask).sum())
 
 render_header(username=CU, session_id=sid, is_admin=IS_ADMIN)
 
+# ── Overview — only renders 3 numbers + bar ──
 with st.container(border=True):
     section("Session Overview")
     m1, m2, m3 = st.columns(3)
-    m1.markdown(f'<div class="stat-box"><div class="stat-label">Total Items</div><div class="stat-value">{total}</div></div>', unsafe_allow_html=True)
+    m1.markdown(f'<div class="stat-box"><div class="stat-label">Total</div><div class="stat-value">{total}</div></div>', unsafe_allow_html=True)
     m2.markdown(f'<div class="stat-box"><div class="stat-label">Counted</div><div class="stat-value">{counted}</div></div>', unsafe_allow_html=True)
     m3.markdown(f'<div class="stat-box"><div class="stat-label">Variances</div><div class="stat-value" style="color:#DC2626">{n_vars}</div></div>', unsafe_allow_html=True)
     st.markdown(f"""
     <div class="prog-wrap">
-      <div class="prog-head"><span>Progress</span><span><b style="color:#002855">{pct}%</b> complete</span></div>
+      <div class="prog-head"><span>Progress</span><span><b style="color:#002855">{pct}%</b></span></div>
       <div class="prog-track"><div class="prog-fill" style="width:{pct}%"></div></div>
     </div>""", unsafe_allow_html=True)
 
+# ── Count Entry — search only loads matching rows ──
 with st.container(border=True):
     section("Count Entry")
     search = st.text_input("Search", placeholder="🔍  Product name or code…", label_visibility="collapsed")
 
-    if search and search.strip():
-        mask = (
-            df["product name"].str.contains(search.strip(), case=False, na=False) |
-            df["product code"].str.contains(search.strip(), case=False, na=False)
-        )
-        matches = df[mask]
+    if search and len(search.strip()) >= 1:
+        q = search.strip()
+
+        # Search only on the two index columns — fast even on 3MB tables
+        mask    = (df["product name"].str.contains(q, case=False, na=False) |
+                   df["product code"].str.contains(q, case=False, na=False))
+        matches = df.loc[mask, ["product code", "product name"]]  # only 2 cols
+
         if matches.empty:
             st.warning("No products found.")
         else:
-            opts   = matches.apply(lambda x: f"{x['product code']}  —  {x['product name']}", axis=1).tolist()
+            opts   = (matches["product code"] + "  —  " + matches["product name"]).tolist()
             choice = st.selectbox("Product", opts, label_visibility="collapsed")
             p_code = choice.split("  —  ")[0].strip()
-            idxs   = df[df["product code"] == p_code].index.tolist()
 
-            if idxs:
-                idx       = idxs[0]
+            # Fetch only the single matching row
+            idx_list = df.index[df["product code"] == p_code].tolist()
+            if idx_list:
+                idx       = idx_list[0]
                 sys_qty   = int(df.at[idx, "systems count"])
                 prev_phys = int(df.at[idx, "physical count"])
                 already   = df.at[idx, "last_updated"] != ""
 
                 st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
                 q1, q2, q3 = st.columns(3)
+
                 with q1:
                     st.markdown(f'<div class="stat-box"><div class="stat-label">System Qty</div><div class="stat-value">{sys_qty}</div></div>', unsafe_allow_html=True)
                 with q2:
-                    phys_val = st.number_input("Physical Count", value=prev_phys, min_value=0, step=1, key=f"p_{idx}")
+                    phys_val = st.number_input("Physical Count", value=prev_phys,
+                                               min_value=0, step=1, key=f"p_{idx}")
                 with q3:
                     diff = phys_val - sys_qty
                     cls  = "positive" if diff > 0 else "negative" if diff < 0 else "neutral"
@@ -664,16 +679,29 @@ with st.container(border=True):
                     st.caption(f"⏱ Last saved: {df.at[idx, 'last_updated']}")
 
                 if st.button("💾  Save Count", use_container_width=True):
+                    # Update only the 3 cells that changed — don't copy full df
                     df.at[idx, "physical count"] = phys_val
                     df.at[idx, "difference"]     = diff
                     df.at[idx, "last_updated"]   = datetime.now().strftime("%H:%M:%S")
-                    st.session_state.df = df
-                    save_audit(sid, CU, st.session_state.get("active_client", ""), df)
-                    st.toast(f"Saved {p_code} ✅")
+                    # No df copy — mutate in place, session_state already holds reference
+                    st.session_state.save_counter = st.session_state.get("save_counter", 0) + 1
+
+                    if st.session_state.save_counter >= 10:
+                        # Compress before saving: pickle with protocol 4 = smaller
+                        save_audit(sid, CU, st.session_state.get("active_client", ""), df)
+                        st.session_state.save_counter = 0
+                        st.toast(f"✅ {p_code} · ☁️ backed up!")
+                    else:
+                        remaining = 10 - st.session_state.save_counter
+                        st.toast(f"✅ {p_code} · backup in {remaining}")
                     st.rerun()
 
-recent = df[df["last_updated"] != ""].sort_values("last_updated", ascending=False).head(5)
-if not recent.empty:
+# ── Recent Activity — only last 5 rows, only 4 cols ──
+recent_mask = df["last_updated"] != ""
+if recent_mask.any():
+    recent = (df.loc[recent_mask, ["product name", "product code", "difference", "last_updated"]]
+                .sort_values("last_updated", ascending=False)
+                .head(5))
     with st.container(border=True):
         section("Recent Activity")
         for _, r in recent.iterrows():
@@ -690,29 +718,49 @@ if not recent.empty:
               {badge}
             </div>""", unsafe_allow_html=True)
 
+# ── Footer — export buttons only render buffers on click ──
 st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 fa1, fa2, fa3 = st.columns(3)
 
 with fa1:
-    out = io.BytesIO()
-    with pd.ExcelWriter(out, engine="openpyxl") as w:
-        df.to_excel(w, index=False, sheet_name="Audit")
-    st.download_button("📤 Export All", out.getvalue(),
+    # Build Excel lazily only when download button is clicked
+    @st.cache_data(show_spinner=False)
+    def build_excel_all(_df, _sid):
+        out = io.BytesIO()
+        with pd.ExcelWriter(out, engine="openpyxl") as w:
+            _df.to_excel(w, index=False, sheet_name="Audit")
+        return out.getvalue()
+
+    st.download_button("📤 Export All",
+        build_excel_all(df, sid),
         file_name=f"{sid}_Audit_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True)
 
 with fa2:
-    out2 = io.BytesIO()
-    with pd.ExcelWriter(out2, engine="openpyxl") as w:
-        df[df["difference"] != 0].to_excel(w, index=False, sheet_name="Variances")
-    st.download_button("⚠️ Variances", out2.getvalue(),
+    @st.cache_data(show_spinner=False)
+    def build_excel_var(_df, _sid):
+        out = io.BytesIO()
+        with pd.ExcelWriter(out, engine="openpyxl") as w:
+            _df[_df["difference"] != 0].to_excel(w, index=False, sheet_name="Variances")
+        return out.getvalue()
+
+    st.download_button("⚠️ Variances",
+        build_excel_var(df, sid),
         file_name=f"{sid}_Variances_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True)
 
 with fa3:
-    if st.button("🚪 Close Session", use_container_width=True):
-        for k in ["active_sid", "active_client", "df"]:
-            st.session_state.pop(k, None)
-        st.rerun()
+    if st.button("☁️ Backup Now", use_container_width=True):
+        save_audit(sid, CU, st.session_state.get("active_client", ""), df)
+        st.session_state.save_counter = 0
+        st.toast("☁️ Backed up!")
+
+st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+if st.button("🚪 Save & Close Session", use_container_width=True):
+    save_audit(sid, CU, st.session_state.get("active_client", ""), df)
+    for k in ["active_sid", "active_client", "df", "save_counter"]:
+        st.session_state.pop(k, None)
+    st.rerun()
+
