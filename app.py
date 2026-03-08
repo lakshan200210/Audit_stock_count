@@ -277,22 +277,37 @@ window.__SC_SUPABASE_KEY__ = atob('{skey_b64}');
     st.stop()
 
 # ─────────────────────────────────────────────
-#  SYNC HANDLER — counting page POSTs here
+#  SYNC HANDLER
+#  counting.html navigates parent to /?sc_sync=1&sid=XXX
+#  Streamlit uses streamlit-javascript to read localStorage
+#  saves to DB, then restores the counting session
 # ─────────────────────────────────────────────
 qp = st.query_params
-if qp.get("action") == "sync":
-    sid_s  = qp.get("sid", "")
-    data_s = qp.get("data", "")
-    if sid_s and data_s:
-        try:
-            df_s = json_to_df(data_s)
-            row  = run("SELECT username,location FROM stock_sessions WHERE sid=%s", (sid_s,), fetch="one")
-            if row:
-                save_session(sid_s, row["username"], row["location"] or "", df_s)
-        except Exception:
-            pass
+if qp.get("sc_sync") == "1":
+    sid_s = qp.get("sc_sid", "")
     st.query_params.clear()
-    st.rerun()
+
+    from streamlit_javascript import st_javascript
+
+    # Read all keys from localStorage in one call
+    sc_data     = st_javascript("localStorage.getItem('sc_data')     || '[]'")
+    sc_location = st_javascript("localStorage.getItem('sc_location') || ''")
+    sc_user     = st_javascript("localStorage.getItem('sc_user')     || ''")
+
+    if sid_s and sc_data and sc_data != "[]":
+        try:
+            df_s = json_to_df(sc_data)
+            row  = run("SELECT username,location FROM stock_sessions WHERE sid=%s", (sid_s,), fetch="one")
+            u    = (row["username"] if row else sc_user) or CU
+            loc  = sc_location or (row["location"] if row else "") or ""
+            save_session(sid_s, u, loc, df_s)
+            # Return to counting page with fresh DB data
+            st.session_state.counting_sid      = sid_s
+            st.session_state.counting_location = loc
+            st.session_state.counting_data     = sc_data
+            st.rerun()
+        except Exception as e:
+            st.error(f"Sync failed: {e}")
 
 
 # ─────────────────────────────────────────────

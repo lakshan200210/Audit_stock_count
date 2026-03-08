@@ -531,13 +531,8 @@ function saveCount(idx) {
   // Update sync bar
   updateSyncBar();
 
-  // Auto-sync every N counts
-  if (saveCount_counter % SYNC_EVERY === 0) {
-    syncToCloud(true);
-  } else {
-    const left = SYNC_EVERY - (saveCount_counter % SYNC_EVERY);
-    showToast(`✅ ${products[idx]['product code']} saved · cloud sync in ${left}`);
-  }
+  // Show save confirmation
+  showToast(`✅ ${products[idx]['product code']} saved locally`);
 
   // Refresh recent counts section only (not whole app — keeps search intact)
   refreshRecent();
@@ -576,66 +571,39 @@ function refreshRecent() {
 }
 
 // ─────────────────────────────────────────────
-//  SYNC TO CLOUD — POST directly to Supabase REST
-//  Works from inside iframe, no Streamlit needed
+//  SYNC TO CLOUD
+//  Writes data to localStorage then navigates
+//  the parent window to /?sc_sync=1
+//  Streamlit sees the query param, reads localStorage,
+//  saves to DB, then returns to counting page
 // ─────────────────────────────────────────────
-async function syncToCloud(auto = false) {
-  const sid = localStorage.getItem('sc_sid') || (window.__SC_SID__ || '');
+function syncToCloud(auto = false) {
+  const sid = window.__SC_SID__ || localStorage.getItem('sc_sid') || '';
   if (!sid) return;
+
+  // Always save latest data to localStorage first
+  localStorage.setItem('sc_data',     JSON.stringify(products));
+  localStorage.setItem('sc_sid',      sid);
+  localStorage.setItem('sc_user',     window.__SC_USER__     || localStorage.getItem('sc_user')     || '');
+  localStorage.setItem('sc_location', window.__SC_LOCATION__ || localStorage.getItem('sc_location') || '');
+  localStorage.setItem('sc_sync_pending', '1');
 
   setSyncStatus('syncing');
   const btn = document.getElementById('syncBtn');
   btn.textContent = '⏳ Syncing…';
   btn.disabled = true;
 
+  // Navigate parent Streamlit window to trigger sync
+  // Streamlit will read localStorage, save to DB, return here
   try {
-    const supabaseUrl = window.__SC_SUPABASE_URL__ || '';
-    const supabaseKey = window.__SC_SUPABASE_KEY__ || '';
-    const data        = JSON.stringify(products);
-    const now         = new Date().toISOString().slice(0,16).replace('T',' ');
-    const username    = window.__SC_USER__ || localStorage.getItem('sc_user') || '';
-    const location    = window.__SC_LOCATION__ || localStorage.getItem('sc_location') || '';
-
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('No Supabase credentials');
-    }
-
-    // Upsert directly to Supabase via REST API
-    const resp = await fetch(`${supabaseUrl}/rest/v1/stock_sessions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'apikey':        supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Prefer':        'resolution=merge-duplicates'
-      },
-      body: JSON.stringify({
-        sid:      sid,
-        username: username,
-        location: location,
-        data:     data,
-        updated:  now
-      }),
-      signal: AbortSignal.timeout(10000)
-    });
-
-    if (resp.ok || resp.status === 201 || resp.status === 200) {
-      saveCount_counter = 0;
-      localStorage.setItem('sc_counter', '0');
-      setSyncStatus('ok');
-      showToast(auto ? '☁️ Auto-synced to cloud!' : '☁️ Synced to cloud!');
-    } else {
-      const err = await resp.text();
-      throw new Error(`HTTP ${resp.status}: ${err}`);
-    }
+    const parentUrl = window.parent.location.href.split('?')[0];
+    window.parent.location.href = parentUrl + '?sc_sync=1&sc_sid=' + encodeURIComponent(sid);
   } catch(e) {
     setSyncStatus('offline');
-    showToast('📵 Saved locally — will sync when connected');
-    console.error('Sync error:', e);
+    showToast('📵 Could not reach server — saved locally');
+    btn.textContent = '☁️ Sync to Cloud';
+    btn.disabled = false;
   }
-
-  btn.textContent = '☁️ Sync to Cloud';
-  btn.disabled = false;
 }
 
 // ─────────────────────────────────────────────
@@ -662,7 +630,7 @@ function setSyncStatus(state, pending) {
   } else if (state === 'syncing') {
     el.innerHTML = '<span class="sync-dot dot-syncing"></span>Syncing to cloud…';
   } else if (state === 'offline') {
-    el.innerHTML = '<span class="sync-dot dot-offline"></span>Offline · saved locally';
+    el.innerHTML = '<span class="sync-dot dot-offline"></span>Could not sync · saved locally';
   }
 }
 
