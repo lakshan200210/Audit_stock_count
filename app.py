@@ -771,121 +771,89 @@ with st.container(border=True):
                 if already:
                     st.caption(f"⏱ Last saved: {df.at[idx, 'last_updated']}")
 
-                # ── Pure JS count widget — variance is instant, no Python round trip ──
+                st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+                q1, q2, q3 = st.columns(3)
+
+                with q1:
+                    st.markdown(f'<div class="stat-box"><div class="stat-label">System Qty</div><div class="stat-value">{sys_qty}</div></div>', unsafe_allow_html=True)
+
+                with q2:
+                    phys_val = st.number_input(
+                        "Physical Count", value=prev_phys,
+                        min_value=0, step=1, key=f"p_{idx}"
+                    )
+
+                with q3:
+                    # Show last saved variance until user changes the number
+                    diff = phys_val - sys_qty
+                    cls  = "positive" if diff > 0 else "negative" if diff < 0 else "neutral"
+                    sign = "+" if diff > 0 else ""
+                    st.markdown(f'<div class="vbox {cls}"><div class="vbox-label">Variance</div><div class="vbox-value">{sign}{diff}</div></div>', unsafe_allow_html=True)
+
+                # JS overlay: watches the number input and updates variance box instantly
+                # without triggering a Python rerun — purely cosmetic live update
                 st.components.v1.html(f"""
-                <style>
-                  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=DM+Mono&display=swap');
-                  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-                  body {{ font-family: 'DM Sans', sans-serif; background: transparent; padding: 8px 0; }}
-                  .row {{ display: flex; gap: 10px; margin-bottom: 12px; }}
-                  .box {{ flex: 1; background: #F4F6FA; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 10px; text-align: center; }}
-                  .box-label {{ font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #8A9BAE; margin-bottom: 6px; }}
-                  .box-value {{ font-size: 1.8rem; font-weight: 700; color: #002855; line-height: 1; }}
-                  #vbox {{ flex: 1; border-radius: 12px; padding: 14px 10px; text-align: center; border: 1px solid #E2E8F0; background: #F4F6FA; }}
-                  #vbox .box-label {{ font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #8A9BAE; margin-bottom: 6px; }}
-                  #vval {{ font-size: 1.8rem; font-weight: 700; line-height: 1; color: #0D1B2A; }}
-                  .input-wrap {{ display: flex; flex-direction: column; }}
-                  .input-wrap label {{ font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #8A9BAE; margin-bottom: 6px; }}
-                  #phys {{ width: 100%; border: 1.5px solid #CBD5E0; border-radius: 10px; padding: 10px 14px;
-                           font-family: 'DM Sans', sans-serif; font-size: 1.4rem; font-weight: 700;
-                           color: #002855; background: #F8FAFC; text-align: center; outline: none; }}
-                  #phys:focus {{ border-color: #00509E; box-shadow: 0 0 0 3px rgba(0,80,158,0.1); }}
-                  #savebtn {{ width: 100%; background: linear-gradient(135deg,#002855,#00509E);
-                              color: #fff; border: none; border-radius: 10px; height: 48px;
-                              font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 0.95rem;
-                              cursor: pointer; margin-top: 4px; letter-spacing: 0.2px; }}
-                  #savebtn:active {{ opacity: 0.85; }}
-                </style>
-
-                <div class="row">
-                  <div class="box">
-                    <div class="box-label">System Qty</div>
-                    <div class="box-value">{sys_qty}</div>
-                  </div>
-                  <div class="input-wrap" style="flex:1">
-                    <label>Physical Count</label>
-                    <input id="phys" type="number" min="0" value="{prev_phys}" inputmode="numeric" />
-                  </div>
-                  <div id="vbox">
-                    <div class="box-label">Variance</div>
-                    <div id="vval">0</div>
-                  </div>
-                </div>
-                <button id="savebtn">💾  Save Count</button>
-
                 <script>
-                  const sysQty  = {sys_qty};
-                  const physIn  = document.getElementById("phys");
-                  const vval    = document.getElementById("vval");
-                  const vbox    = document.getElementById("vbox");
-                  const saveBtn = document.getElementById("savebtn");
+                (function() {{
+                  const sysQty = {sys_qty};
 
-                  // Initialise variance display
-                  updateVariance();
+                  function findInputAndVbox() {{
+                    // Find the number input by its aria-label
+                    const inputs = window.parent.document.querySelectorAll('input[type="number"]');
+                    let physIn = null;
+                    inputs.forEach(el => {{
+                      if (el.closest('[data-testid="stNumberInput"]')) physIn = el;
+                    }});
 
-                  // ── Instant variance on every keystroke — pure JS, zero Python ──
-                  physIn.addEventListener("input", updateVariance);
+                    const vboxes = window.parent.document.querySelectorAll('.vbox-value');
+                    const vbox   = vboxes[vboxes.length - 1];
+                    const vboxEl = vbox ? vbox.closest('.vbox') : null;
 
-                  function updateVariance() {{
-                    const phys = parseInt(physIn.value) || 0;
-                    const diff = phys - sysQty;
-                    vval.textContent = diff > 0 ? "+" + diff : diff;
-                    if (diff > 0) {{
-                      vbox.style.background = "#ECFDF5";
-                      vbox.style.borderColor = "#6EE7B7";
-                      vval.style.color = "#059669";
-                    }} else if (diff < 0) {{
-                      vbox.style.background = "#FEF2F2";
-                      vbox.style.borderColor = "#FCA5A5";
-                      vval.style.color = "#DC2626";
-                    }} else {{
-                      vbox.style.background = "#F4F6FA";
-                      vbox.style.borderColor = "#E2E8F0";
-                      vval.style.color = "#0D1B2A";
-                    }}
+                    if (!physIn || !vbox) return;
+
+                    physIn.addEventListener('input', function() {{
+                      const phys = parseInt(physIn.value) || 0;
+                      const diff = phys - sysQty;
+                      vbox.textContent = diff > 0 ? '+' + diff : String(diff);
+                      if (diff > 0) {{
+                        vboxEl.style.background   = '#ECFDF5';
+                        vboxEl.style.borderColor  = '#6EE7B7';
+                        vbox.style.color          = '#059669';
+                      }} else if (diff < 0) {{
+                        vboxEl.style.background   = '#FEF2F2';
+                        vboxEl.style.borderColor  = '#FCA5A5';
+                        vbox.style.color          = '#DC2626';
+                      }} else {{
+                        vboxEl.style.background   = '#F4F6FA';
+                        vboxEl.style.borderColor  = '#E2E8F0';
+                        vbox.style.color          = '#0D1B2A';
+                      }}
+                    }});
                   }}
 
-                  // ── Save: pass values back to Streamlit via query params ──
-                  saveBtn.addEventListener("click", function() {{
-                    const phys = parseInt(physIn.value) || 0;
-                    const diff = phys - sysQty;
-                    const url  = new URL(window.parent.location.href);
-                    url.searchParams.set("save_code",  "{p_code}");
-                    url.searchParams.set("save_phys",  phys);
-                    url.searchParams.set("save_diff",  diff);
-                    url.searchParams.set("save_idx",   "{idx}");
-                    window.parent.location.href = url.toString();
-                  }});
+                  // Try immediately, then retry after Streamlit renders
+                  findInputAndVbox();
+                  setTimeout(findInputAndVbox, 500);
+                }})();
                 </script>
-                """, height=180)
+                """, height=0)
 
-                # ── Handle save triggered from JS via query params ──
-                sp = st.query_params
-                if sp.get("save_code") == p_code and sp.get("save_idx") == str(idx):
-                    try:
-                        saved_phys = int(sp.get("save_phys", prev_phys))
-                        saved_diff = int(sp.get("save_diff", 0))
-                        df.at[idx, "physical count"] = saved_phys
-                        df.at[idx, "difference"]     = saved_diff
-                        df.at[idx, "last_updated"]   = datetime.now().strftime("%H:%M:%S")
-                        st.session_state.save_counter += 1
+                if st.button("💾  Save Count", use_container_width=True):
+                    df.at[idx, "physical count"] = phys_val
+                    df.at[idx, "difference"]     = diff
+                    df.at[idx, "last_updated"]   = datetime.now().strftime("%H:%M:%S")
+                    st.session_state.save_counter += 1
 
-                        set_local_storage("bdo_df",      df_to_json(df))
-                        set_local_storage("bdo_counter", str(st.session_state.save_counter))
+                    set_local_storage("bdo_df",      df_to_json(df))
+                    set_local_storage("bdo_counter", str(st.session_state.save_counter))
 
-                        if st.session_state.save_counter % 10 == 0:
-                            save_audit_db(sid, CU, st.session_state.get("active_client",""), df)
-                            st.toast(f"✅ {p_code} · ☁️ backed up!")
-                        else:
-                            left = 10 - (st.session_state.save_counter % 10)
-                            st.toast(f"✅ {p_code} saved · backup in {left}")
-
-                        # Clear save params from URL
-                        for k in ["save_code","save_phys","save_diff","save_idx"]:
-                            st.query_params.pop(k, None)
-                        st.rerun()
-                    except Exception:
-                        pass
+                    if st.session_state.save_counter % 10 == 0:
+                        save_audit_db(sid, CU, st.session_state.get("active_client",""), df)
+                        st.toast(f"✅ {p_code} · ☁️ backed up!")
+                    else:
+                        left = 10 - (st.session_state.save_counter % 10)
+                        st.toast(f"✅ {p_code} saved · backup in {left}")
+                    st.rerun()
 
 recent_mask = df["last_updated"] != ""
 if recent_mask.any():
