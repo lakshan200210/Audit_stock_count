@@ -8,6 +8,9 @@ import json
 import base64
 from datetime import datetime
 
+# ─────────────────────────────────────────────
+#  CONFIG
+# ─────────────────────────────────────────────
 st.set_page_config(
     page_title="Stock Count Pro",
     page_icon="📦",
@@ -19,6 +22,7 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 
+/* ── NUCLEAR RESET ── */
 .stApp,
 section[data-testid="stMain"],
 div[data-testid="stAppViewContainer"],
@@ -44,6 +48,7 @@ div[data-testid="stTabsContent"] {
     border: none !important;
 }
 
+/* ── FORCE LIGHT MODE ── */
 html, body { color-scheme: light !important; }
 .stApp {
     background-color: #F4F6FA !important;
@@ -211,40 +216,6 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
 [data-testid="stFileUploaderDropzone"] {
     border: 2px dashed #CBD5E0 !important; border-radius: 12px !important; background: #F8FAFC !important;
 }
-
-/* ── FIX 1: product result buttons wrap to 2 lines on mobile ── */
-.stButton > button {
-    height: auto !important;
-    min-height: 46px !important;
-    white-space: normal !important;
-    word-break: break-word !important;
-    text-align: left !important;
-    line-height: 1.4 !important;
-    padding-top: 10px !important;
-    padding-bottom: 10px !important;
-}
-/* Selected product display card */
-.product-card {
-    background: #EEF5FF;
-    border: 2px solid #00509E;
-    border-radius: 14px;
-    padding: 14px 16px;
-    margin-bottom: 14px;
-}
-.product-card .pc-code {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.76rem;
-    color: #5A6A7A;
-    margin-bottom: 4px;
-}
-.product-card .pc-name {
-    font-size: 0.98rem;
-    font-weight: 700;
-    color: #002855;
-    line-height: 1.35;
-    word-break: break-word;
-    white-space: normal;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -257,7 +228,7 @@ def hash_password(password: str) -> str:
 
 
 # ─────────────────────────────────────────────
-#  DATABASE
+#  DATABASE — only called on login + backup
 # ─────────────────────────────────────────────
 @st.cache_resource(show_spinner="Connecting…")
 def get_db():
@@ -322,9 +293,10 @@ def change_password(username, new_password):
 
 
 # ─────────────────────────────────────────────
-#  AUDIT CRUD
+#  AUDIT CRUD — with gzip compression
 # ─────────────────────────────────────────────
 def df_to_bytes(df: pd.DataFrame) -> bytes:
+    """Compress DataFrame — ~70% smaller than raw pickle."""
     cols = ["product code","product name","systems count","physical count","difference","last_updated"]
     save_df = df[[c for c in cols if c in df.columns]]
     buf = io.BytesIO()
@@ -335,9 +307,10 @@ def bytes_to_df(raw: bytes) -> pd.DataFrame:
     try:
         return pd.read_pickle(io.BytesIO(raw), compression="gzip")
     except Exception:
-        return pd.read_pickle(io.BytesIO(raw))
+        return pd.read_pickle(io.BytesIO(raw))  # fallback uncompressed
 
 def save_audit_db(sid, username, client, df):
+    """Save to Supabase — only called every 10 counts or on manual backup."""
     data = psycopg2.Binary(df_to_bytes(df))
     ts   = datetime.now().strftime("%Y-%m-%d %H:%M")
     run("""INSERT INTO audit_sessions (sid,username,client,data,updated)
@@ -361,29 +334,58 @@ def get_all_sessions_admin():
 
 
 # ─────────────────────────────────────────────
-#  LOCAL STORAGE HELPERS
+#  LOCAL STORAGE BRIDGE
+#  Saves/loads data to browser localStorage so
+#  the page feels instant on refresh — no DB hit
 # ─────────────────────────────────────────────
 def df_to_json(df: pd.DataFrame) -> str:
+    """Convert df to compact JSON string for localStorage."""
     return df.to_json(orient="records")
 
 def json_to_df(json_str: str) -> pd.DataFrame:
+    """Restore df from localStorage JSON."""
     records = json.loads(json_str)
     df = pd.DataFrame(records)
-    df["physical count"] = pd.to_numeric(df["physical count"], errors="coerce").fillna(0).astype(int)
-    df["difference"]     = pd.to_numeric(df["difference"],     errors="coerce").fillna(0).astype(int)
+    df["physical count"] = df["physical count"].astype(int)
+    df["difference"]     = df["difference"].astype(int)
     df["last_updated"]   = df["last_updated"].fillna("").astype(str)
-    df["systems count"]  = pd.to_numeric(df["systems count"],  errors="coerce").fillna(0)
+    df["systems count"]  = pd.to_numeric(df["systems count"], errors="coerce").fillna(0)
     df["product code"]   = df["product code"].astype(str)
     df["product name"]   = df["product name"].astype(str)
     return df
 
+def inject_local_storage_reader():
+    """
+    Injects JS that reads localStorage and posts the value back to Streamlit
+    via a hidden text input. Called once on page load.
+    """
+    st.components.v1.html("""
+    <script>
+    // Read all app keys from localStorage and post to parent Streamlit
+    function sendToStreamlit(data) {
+        window.parent.postMessage({
+            type: "streamlit:setComponentValue",
+            value: JSON.stringify(data)
+        }, "*");
+    }
+    const keys = ["bdo_user","bdo_sid","bdo_client","bdo_df","bdo_counter"];
+    const out  = {};
+    keys.forEach(k => { const v = localStorage.getItem(k); if(v) out[k] = v; });
+    sendToStreamlit(out);
+    </script>
+    """, height=0)
+
 def set_local_storage(key: str, value: str):
+    """Write a value to browser localStorage via injected JS."""
     safe_value = value.replace("`", "\\`").replace("\\", "\\\\")
     st.components.v1.html(f"""
-    <script>localStorage.setItem("{key}", `{safe_value}`);</script>
+    <script>
+    localStorage.setItem("{key}", `{safe_value}`);
+    </script>
     """, height=0)
 
 def clear_local_storage():
+    """Clear all app keys from localStorage."""
     st.components.v1.html("""
     <script>
     ["bdo_user","bdo_sid","bdo_client","bdo_df","bdo_counter"].forEach(k => localStorage.removeItem(k));
@@ -402,13 +404,17 @@ def normalise_df(df):
     if missing:
         st.error(f"Missing columns: {', '.join(missing)}")
         st.stop()
-    df["product code"]   = df["product code"].astype(str).str.strip()
-    df["product name"]   = df["product name"].astype(str).str.strip()
-    df["systems count"]  = pd.to_numeric(df["systems count"], errors="coerce").fillna(0)
+    df["product code"]  = df["product code"].astype(str).str.strip()
+    df["product name"]  = df["product name"].astype(str).str.strip()
+    df["systems count"] = pd.to_numeric(df["systems count"], errors="coerce").fillna(0)
     df["physical count"] = 0
-    df["difference"]     = 0
-    df["last_updated"]   = ""
+    df["difference"]    = 0
+    df["last_updated"]  = ""
     return df
+
+def pct_done(df):
+    n = len(df)
+    return round((df["last_updated"] != "").sum() / n * 100, 1) if n else 0.0
 
 def render_header(username="", session_id="", is_admin=False):
     admin_badge = '<span class="admin-badge">ADMIN</span>' if is_admin else ""
@@ -433,7 +439,10 @@ def sync_status(counter: int):
 
 
 # ─────────────────────────────────────────────
-#  SESSION STATE INIT
+#  RESTORE SESSION FROM localStorage
+#  On every page load, check if user was already
+#  logged in and had an active audit — restore it
+#  instantly without hitting the database
 # ─────────────────────────────────────────────
 if "ls_checked" not in st.session_state:
     st.session_state.ls_checked      = False
@@ -443,22 +452,21 @@ if "ls_checked" not in st.session_state:
     st.session_state.active_client   = None
     st.session_state.df              = None
     st.session_state.save_counter    = 0
-    # FIX 2: track selected product index in session_state
-    st.session_state.selected_idx    = None
-    st.session_state.selected_code   = None
 
-qp         = st.query_params
-ls_user    = qp.get("ls_user",    "")
-ls_sid     = qp.get("ls_sid",     "")
-ls_client  = qp.get("ls_client",  "")
+# Read localStorage values passed via query params trick
+# We use st.query_params to pass localStorage data back
+qp = st.query_params
+ls_user    = qp.get("ls_user", "")
+ls_sid     = qp.get("ls_sid", "")
+ls_client  = qp.get("ls_client", "")
 ls_counter = qp.get("ls_counter", "0")
 
+# If localStorage had a logged-in user, restore silently
 if ls_user and not st.session_state.current_user:
     row = get_user(ls_user)
     if row:
         st.session_state.current_user = row["username"]
         st.session_state.is_admin     = bool(row["is_admin"])
-
 
 # ─────────────────────────────────────────────
 #  AUTH
@@ -466,15 +474,16 @@ if ls_user and not st.session_state.current_user:
 if not st.session_state.current_user:
     render_header()
 
+    # Inject JS to auto-redirect if localStorage has valid session
     st.components.v1.html("""
     <script>
     const u = localStorage.getItem("bdo_user");
     if (u) {
         const url = new URL(window.parent.location.href);
-        url.searchParams.set("ls_user",    u);
-        url.searchParams.set("ls_sid",     localStorage.getItem("bdo_sid")    || "");
-        url.searchParams.set("ls_client",  localStorage.getItem("bdo_client") || "");
-        url.searchParams.set("ls_counter", localStorage.getItem("bdo_counter")|| "0");
+        url.searchParams.set("ls_user", u);
+        url.searchParams.set("ls_sid", localStorage.getItem("bdo_sid") || "");
+        url.searchParams.set("ls_client", localStorage.getItem("bdo_client") || "");
+        url.searchParams.set("ls_counter", localStorage.getItem("bdo_counter") || "0");
         window.parent.location.href = url.toString();
     }
     </script>
@@ -491,6 +500,7 @@ if not st.session_state.current_user:
             if row and row["password_hash"] == hash_password(password_input):
                 st.session_state.current_user = row["username"]
                 st.session_state.is_admin     = bool(row["is_admin"])
+                # Save to localStorage so next visit skips login
                 set_local_storage("bdo_user", row["username"])
                 st.rerun()
             else:
@@ -511,7 +521,7 @@ with st.sidebar:
         st.markdown("**Role:** Admin 🔑")
     st.divider()
     with st.expander("🔒 Change Password"):
-        cp1 = st.text_input("New password",     type="password", key="cp1")
+        cp1 = st.text_input("New password", type="password", key="cp1")
         cp2 = st.text_input("Confirm password", type="password", key="cp2")
         if st.button("Update Password"):
             if not cp1:
@@ -524,17 +534,20 @@ with st.sidebar:
     st.divider()
     if st.button("🚪 Sign Out", use_container_width=True):
         clear_local_storage()
-        for k in ["current_user","is_admin","active_sid","active_client",
-                  "df","save_counter","selected_idx","selected_code"]:
+        for k in ["current_user","is_admin","active_sid","active_client","df","save_counter"]:
             st.session_state.pop(k, None)
+        # Clear query params
         st.query_params.clear()
         st.rerun()
 
 
 # ─────────────────────────────────────────────
-#  RESTORE ACTIVE SESSION FROM localStorage
+#  RESTORE ACTIVE AUDIT FROM localStorage
+#  If user had an open audit, restore it from
+#  localStorage — zero DB calls needed
 # ─────────────────────────────────────────────
 if not st.session_state.active_sid and ls_sid:
+    # Try to restore from localStorage via JS bridge
     st.components.v1.html("""
     <script>
     const sid    = localStorage.getItem("bdo_sid");
@@ -543,15 +556,16 @@ if not st.session_state.active_sid and ls_sid:
     const ctr    = localStorage.getItem("bdo_counter") || "0";
     if (sid && df) {
         const url = new URL(window.parent.location.href);
-        url.searchParams.set("ls_sid",     sid);
-        url.searchParams.set("ls_client",  client || "");
+        url.searchParams.set("ls_sid",    sid);
+        url.searchParams.set("ls_client", client || "");
         url.searchParams.set("ls_counter", ctr);
-        url.searchParams.set("ls_df",      df);
+        url.searchParams.set("ls_df",     df);
         window.parent.location.href = url.toString();
     }
     </script>
     """, height=0)
 
+# Restore df from query params if available
 ls_df = qp.get("ls_df", "")
 if ls_df and st.session_state.active_sid is None and ls_sid:
     try:
@@ -561,11 +575,11 @@ if ls_df and st.session_state.active_sid is None and ls_sid:
         st.session_state.df            = restored_df
         st.session_state.save_counter  = int(ls_counter)
     except Exception:
-        pass
+        pass  # If restore fails, user picks from dashboard normally
 
 
 # ─────────────────────────────────────────────
-#  DASHBOARD
+#  SESSION SELECTION DASHBOARD
 # ─────────────────────────────────────────────
 if not st.session_state.active_sid:
     render_header(username=CU, is_admin=IS_ADMIN)
@@ -600,9 +614,9 @@ if not st.session_state.active_sid:
                             st.session_state.active_client = client_new
                             st.session_state.df            = df
                             st.session_state.save_counter  = 0
-                            st.session_state.selected_idx  = None
-                            st.session_state.selected_code = None
+                            # Save initial record to DB
                             save_audit_db(sid_new, CU, client_new, df)
+                            # Cache to localStorage
                             set_local_storage("bdo_sid",     sid_new)
                             set_local_storage("bdo_client",  client_new)
                             set_local_storage("bdo_df",      df_to_json(df))
@@ -634,8 +648,7 @@ if not st.session_state.active_sid:
                                 st.session_state.active_client = row["client"]
                                 st.session_state.df            = loaded
                                 st.session_state.save_counter  = 0
-                                st.session_state.selected_idx  = None
-                                st.session_state.selected_code = None
+                                # Cache to localStorage for fast reload next time
                                 set_local_storage("bdo_sid",     row["sid"])
                                 set_local_storage("bdo_client",  row["client"] or "")
                                 set_local_storage("bdo_df",      df_to_json(loaded))
@@ -686,8 +699,6 @@ if not st.session_state.active_sid:
                                         st.session_state.active_client = row["client"]
                                         st.session_state.df            = loaded
                                         st.session_state.save_counter  = 0
-                                        st.session_state.selected_idx  = None
-                                        st.session_state.selected_code = None
                                         st.rerun()
             with at3:
                 with st.container(border=True):
@@ -705,19 +716,20 @@ if not st.session_state.active_sid:
 
 
 # ─────────────────────────────────────────────
-#  COUNTING SCREEN
+#  MAIN COUNTING SCREEN
 # ─────────────────────────────────────────────
-# FIX 2: Always reference st.session_state.df directly — never assign to a
-# local variable 'df' and mutate that, because Streamlit won't see the change.
+df  = st.session_state.df
 sid = st.session_state.active_sid
 
-updated_mask = st.session_state.df["last_updated"] != ""
-pct     = round(updated_mask.sum() / len(st.session_state.df) * 100, 1) if len(st.session_state.df) else 0.0
-total   = len(st.session_state.df)
+updated_mask = df["last_updated"] != ""
+pct     = round(updated_mask.sum() / len(df) * 100, 1) if len(df) else 0.0
+total   = len(df)
 counted = int(updated_mask.sum())
-n_vars  = int(((st.session_state.df["difference"] != 0) & updated_mask).sum())
+n_vars  = int(((df["difference"] != 0) & updated_mask).sum())
 
 render_header(username=CU, session_id=sid, is_admin=IS_ADMIN)
+
+# Sync status bar
 sync_status(st.session_state.save_counter)
 
 with st.container(border=True):
@@ -732,153 +744,121 @@ with st.container(border=True):
       <div class="prog-track"><div class="prog-fill" style="width:{pct}%"></div></div>
     </div>""", unsafe_allow_html=True)
 
-
-# ─────────────────────────────────────────────
-#  SEARCH — FIX 1: replaced selectbox with buttons
-#  so product names wrap to 2 lines on mobile
-#  instead of being cut off with "..."
-# ─────────────────────────────────────────────
 with st.container(border=True):
     section("Enter Count")
-    search = st.text_input("Search", placeholder="🔍  Product name or code…",
-                           label_visibility="collapsed", key="search_input")
+    search = st.text_input("Search", placeholder="🔍  Product name or code…", label_visibility="collapsed")
 
     if search and len(search.strip()) >= 1:
         q    = search.strip()
-        mask = (st.session_state.df["product name"].str.contains(q, case=False, na=False) |
-                st.session_state.df["product code"].str.contains(q, case=False, na=False))
-        matches = st.session_state.df.loc[mask].head(20)
+        mask = (df["product name"].str.contains(q, case=False, na=False) |
+                df["product code"].str.contains(q, case=False, na=False))
+        matches = df.loc[mask, ["product code","product name"]]
 
         if matches.empty:
             st.warning("No products found.")
         else:
-            st.caption(f"{len(matches)} result{'s' if len(matches) != 1 else ''} — tap to select")
-            for row_idx in matches.index:
-                row      = st.session_state.df.loc[row_idx]
-                tick     = "✅ " if row["last_updated"] else ""
-                # Two-line label: code on first line, full name on second line
-                btn_label = f"{tick}{row['product code']}  —  {row['product name']}"
-                if st.button(btn_label, key=f"pick_{row_idx}", use_container_width=True):
-                    st.session_state.selected_idx  = int(row_idx)
-                    st.session_state.selected_code = str(row["product code"])
+            opts   = (matches["product code"] + "  —  " + matches["product name"]).tolist()
+            choice = st.selectbox("Product", opts, label_visibility="collapsed")
+            p_code = choice.split("  —  ")[0].strip()
+            idx_list = df.index[df["product code"] == p_code].tolist()
+
+            if idx_list:
+                idx       = idx_list[0]
+                sys_qty   = int(df.at[idx, "systems count"])
+                prev_phys = int(df.at[idx, "physical count"])
+                already   = df.at[idx, "last_updated"] != ""
+
+                if already:
+                    st.caption(f"⏱ Last saved: {df.at[idx, 'last_updated']}")
+
+                st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+                q1, q2, q3 = st.columns(3)
+
+                with q1:
+                    st.markdown(f'<div class="stat-box"><div class="stat-label">System Qty</div><div class="stat-value">{sys_qty}</div></div>', unsafe_allow_html=True)
+
+                with q2:
+                    phys_val = st.number_input(
+                        "Physical Count", value=prev_phys,
+                        min_value=0, step=1, key=f"p_{idx}"
+                    )
+
+                with q3:
+                    # Show last saved variance until user changes the number
+                    diff = phys_val - sys_qty
+                    cls  = "positive" if diff > 0 else "negative" if diff < 0 else "neutral"
+                    sign = "+" if diff > 0 else ""
+                    st.markdown(f'<div class="vbox {cls}"><div class="vbox-label">Variance</div><div class="vbox-value">{sign}{diff}</div></div>', unsafe_allow_html=True)
+
+                # JS overlay: watches the number input and updates variance box instantly
+                # without triggering a Python rerun — purely cosmetic live update
+                st.components.v1.html(f"""
+                <script>
+                (function() {{
+                  const sysQty = {sys_qty};
+
+                  function findInputAndVbox() {{
+                    // Find the number input by its aria-label
+                    const inputs = window.parent.document.querySelectorAll('input[type="number"]');
+                    let physIn = null;
+                    inputs.forEach(el => {{
+                      if (el.closest('[data-testid="stNumberInput"]')) physIn = el;
+                    }});
+
+                    const vboxes = window.parent.document.querySelectorAll('.vbox-value');
+                    const vbox   = vboxes[vboxes.length - 1];
+                    const vboxEl = vbox ? vbox.closest('.vbox') : null;
+
+                    if (!physIn || !vbox) return;
+
+                    physIn.addEventListener('input', function() {{
+                      const phys = parseInt(physIn.value) || 0;
+                      const diff = phys - sysQty;
+                      vbox.textContent = diff > 0 ? '+' + diff : String(diff);
+                      if (diff > 0) {{
+                        vboxEl.style.background   = '#ECFDF5';
+                        vboxEl.style.borderColor  = '#6EE7B7';
+                        vbox.style.color          = '#059669';
+                      }} else if (diff < 0) {{
+                        vboxEl.style.background   = '#FEF2F2';
+                        vboxEl.style.borderColor  = '#FCA5A5';
+                        vbox.style.color          = '#DC2626';
+                      }} else {{
+                        vboxEl.style.background   = '#F4F6FA';
+                        vboxEl.style.borderColor  = '#E2E8F0';
+                        vbox.style.color          = '#0D1B2A';
+                      }}
+                    }});
+                  }}
+
+                  // Try immediately, then retry after Streamlit renders
+                  findInputAndVbox();
+                  setTimeout(findInputAndVbox, 500);
+                }})();
+                </script>
+                """, height=0)
+
+                if st.button("💾  Save Count", use_container_width=True):
+                    df.at[idx, "physical count"] = phys_val
+                    df.at[idx, "difference"]     = diff
+                    df.at[idx, "last_updated"]   = datetime.now().strftime("%H:%M:%S")
+                    st.session_state.save_counter += 1
+
+                    set_local_storage("bdo_df",      df_to_json(df))
+                    set_local_storage("bdo_counter", str(st.session_state.save_counter))
+
+                    if st.session_state.save_counter % 10 == 0:
+                        save_audit_db(sid, CU, st.session_state.get("active_client",""), df)
+                        st.toast(f"✅ {p_code} · ☁️ backed up!")
+                    else:
+                        left = 10 - (st.session_state.save_counter % 10)
+                        st.toast(f"✅ {p_code} saved · backup in {left}")
                     st.rerun()
 
-
-# ─────────────────────────────────────────────
-#  COUNT ENTRY — FIX 2: reads/writes through
-#  st.session_state.df so Save and Close both work
-# ─────────────────────────────────────────────
-if st.session_state.get("selected_idx") is not None:
-    idx = st.session_state.selected_idx
-
-    if idx in st.session_state.df.index:
-        row       = st.session_state.df.loc[idx]
-        sys_qty   = int(row["systems count"])
-        prev_phys = int(row["physical count"])
-
-        with st.container(border=True):
-            section("Physical Count")
-
-            # Full product name displayed in a card — wraps naturally on any screen width
-            st.markdown(f"""
-            <div class="product-card">
-              <div class="pc-code">{row['product code']}</div>
-              <div class="pc-name">{row['product name']}</div>
-            </div>""", unsafe_allow_html=True)
-
-            if row["last_updated"]:
-                st.caption(f"⏱ Last saved: {row['last_updated']}")
-
-            q1, q2, q3 = st.columns(3)
-
-            with q1:
-                st.markdown(f'<div class="stat-box"><div class="stat-label">System Qty</div><div class="stat-value">{sys_qty}</div></div>', unsafe_allow_html=True)
-
-            with q2:
-                phys_val = st.number_input(
-                    "Physical Count", value=prev_phys,
-                    min_value=0, step=1, key=f"p_{idx}"
-                )
-
-            with q3:
-                diff = phys_val - sys_qty
-                cls  = "positive" if diff > 0 else "negative" if diff < 0 else "neutral"
-                sign = "+" if diff > 0 else ""
-                st.markdown(f'<div class="vbox {cls}"><div class="vbox-label">Variance</div><div class="vbox-value">{sign}{diff}</div></div>', unsafe_allow_html=True)
-
-            # Live variance JS — cosmetic only, no Python rerun needed
-            st.components.v1.html(f"""
-            <script>
-            (function() {{
-              const sysQty = {sys_qty};
-              function attach() {{
-                const inputs = window.parent.document.querySelectorAll('input[type="number"]');
-                let physIn = null;
-                inputs.forEach(el => {{ if (el.closest('[data-testid="stNumberInput"]')) physIn = el; }});
-                const vboxes = window.parent.document.querySelectorAll('.vbox-value');
-                const vbox   = vboxes[vboxes.length - 1];
-                const vboxEl = vbox ? vbox.closest('.vbox') : null;
-                if (!physIn || !vbox) return;
-                physIn.addEventListener('input', function() {{
-                  const phys = parseInt(physIn.value) || 0;
-                  const diff = phys - sysQty;
-                  vbox.textContent = diff > 0 ? '+' + diff : String(diff);
-                  if (diff > 0) {{
-                    vboxEl.style.background = '#ECFDF5'; vboxEl.style.borderColor = '#6EE7B7';
-                    vbox.style.color = '#059669';
-                  }} else if (diff < 0) {{
-                    vboxEl.style.background = '#FEF2F2'; vboxEl.style.borderColor = '#FCA5A5';
-                    vbox.style.color = '#DC2626';
-                  }} else {{
-                    vboxEl.style.background = '#F4F6FA'; vboxEl.style.borderColor = '#E2E8F0';
-                    vbox.style.color = '#0D1B2A';
-                  }}
-                }});
-              }}
-              attach(); setTimeout(attach, 500);
-            }})();
-            </script>
-            """, height=0)
-
-            # FIX 2: Save writes directly into st.session_state.df
-            if st.button("💾  Save Count", use_container_width=True):
-                now  = datetime.now().strftime("%H:%M:%S")
-                diff = phys_val - sys_qty
-                st.session_state.df.at[idx, "physical count"] = phys_val
-                st.session_state.df.at[idx, "difference"]     = diff
-                st.session_state.df.at[idx, "last_updated"]   = now
-                st.session_state.save_counter += 1
-                # Clear selection so form closes after save
-                st.session_state.selected_idx  = None
-                st.session_state.selected_code = None
-
-                set_local_storage("bdo_df",      df_to_json(st.session_state.df))
-                set_local_storage("bdo_counter", str(st.session_state.save_counter))
-
-                p_code = str(row["product code"])
-                if st.session_state.save_counter % 10 == 0:
-                    save_audit_db(sid, CU, st.session_state.get("active_client",""), st.session_state.df)
-                    st.toast(f"✅ {p_code} · ☁️ backed up!")
-                else:
-                    left = 10 - (st.session_state.save_counter % 10)
-                    st.toast(f"✅ {p_code} saved · backup in {left}")
-                st.rerun()
-
-            # Cancel button — clears selection without saving
-            if st.button("✖  Cancel", use_container_width=True):
-                st.session_state.selected_idx  = None
-                st.session_state.selected_code = None
-                st.rerun()
-
-
-# ─────────────────────────────────────────────
-#  RECENT COUNTS
-# ─────────────────────────────────────────────
-recent_mask = st.session_state.df["last_updated"] != ""
+recent_mask = df["last_updated"] != ""
 if recent_mask.any():
-    recent = (st.session_state.df.loc[recent_mask,
-              ["product name","product code","difference","last_updated"]]
-              .sort_values("last_updated", ascending=False).head(5))
+    recent = (df.loc[recent_mask, ["product name","product code","difference","last_updated"]]
+                .sort_values("last_updated", ascending=False).head(5))
     with st.container(border=True):
         section("Recent Counts")
         for _, r in recent.iterrows():
@@ -895,17 +875,13 @@ if recent_mask.any():
               {badge}
             </div>""", unsafe_allow_html=True)
 
-
-# ─────────────────────────────────────────────
-#  FOOTER ACTIONS
-# ─────────────────────────────────────────────
 st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 fa1, fa2, fa3 = st.columns(3)
 
 with fa1:
     out_all = io.BytesIO()
     with pd.ExcelWriter(out_all, engine="openpyxl") as w:
-        st.session_state.df.to_excel(w, index=False, sheet_name="Stock Count")
+        df.to_excel(w, index=False, sheet_name="Stock Count")
     st.download_button("📤 Export All", out_all.getvalue(),
         file_name=f"{sid}_StockCount_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -914,30 +890,26 @@ with fa1:
 with fa2:
     out_var = io.BytesIO()
     with pd.ExcelWriter(out_var, engine="openpyxl") as w:
-        st.session_state.df[st.session_state.df["difference"] != 0].to_excel(
-            w, index=False, sheet_name="Variances")
+        df[df["difference"] != 0].to_excel(w, index=False, sheet_name="Variances")
     st.download_button("⚠️ Variances", out_var.getvalue(),
         file_name=f"{sid}_Variances_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True)
 
 with fa3:
-    # FIX 2: Backup Now uses st.session_state.df — same object Save writes to
     if st.button("☁️ Backup Now", use_container_width=True):
-        save_audit_db(sid, CU, st.session_state.get("active_client",""), st.session_state.df)
+        save_audit_db(sid, CU, st.session_state.get("active_client",""), df)
         set_local_storage("bdo_counter", "0")
         st.session_state.save_counter = 0
         st.toast("☁️ Backed up to cloud!")
         st.rerun()
 
 st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-
-# FIX 2: Save & Close uses st.session_state.df — guaranteed to have latest counts
 if st.button("🚪 Save & Close", use_container_width=True):
-    save_audit_db(sid, CU, st.session_state.get("active_client",""), st.session_state.df)
+    save_audit_db(sid, CU, st.session_state.get("active_client",""), df)
     clear_local_storage()
-    set_local_storage("bdo_user", CU)
-    for k in ["active_sid","active_client","df","save_counter","selected_idx","selected_code"]:
+    set_local_storage("bdo_user", CU)  # keep login, clear audit
+    for k in ["active_sid","active_client","df","save_counter"]:
         st.session_state.pop(k, None)
     st.query_params.clear()
     st.rerun()
