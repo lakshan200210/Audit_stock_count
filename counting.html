@@ -254,11 +254,11 @@ body {
 // ─────────────────────────────────────────────
 //  STATE — all in memory + localStorage
 // ─────────────────────────────────────────────
-let products   = [];   // full array of product objects
-let filtered   = [];   // search results
-let selected   = null; // currently selected product index
-let saveCount  = 0;    // counts since last cloud sync
-const SYNC_EVERY = 10; // auto-sync every N counts
+let products   = [];
+let filtered   = [];
+let selected   = null;
+let saveCount_counter = 0;
+const SYNC_EVERY = 10;
 
 // ─────────────────────────────────────────────
 //  INIT — load from localStorage
@@ -268,7 +268,7 @@ function init() {
   const user     = localStorage.getItem('sc_user');
   const location = localStorage.getItem('sc_location') || '';
   const rawData  = localStorage.getItem('sc_data');
-  saveCount      = parseInt(localStorage.getItem('sc_counter') || '0');
+  saveCount_counter = parseInt(localStorage.getItem('sc_counter') || '0');
 
   if (!sid || !rawData) {
     document.getElementById('noDataState').style.display = 'block';
@@ -535,9 +535,6 @@ function saveCount(idx) {
   // Refresh recent counts section only (not whole app — keeps search intact)
   refreshRecent();
 }
-
-// Fix variable name collision
-let saveCount_counter = parseInt(localStorage.getItem('sc_counter') || '0');
 
 // ─────────────────────────────────────────────
 //  REFRESH RECENT (without full re-render)

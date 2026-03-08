@@ -220,38 +220,30 @@ def section(t): st.markdown(f'<div class="section-label">{t}</div>', unsafe_allo
 #  COUNTING PAGE — full screen HTML, no Streamlit
 # ─────────────────────────────────────────────
 def render_counting_page(sid, location, username, data_json):
-    """
-    Completely hides Streamlit and renders counting.html inline.
-    Data is injected directly — no localStorage dependency on load.
-    """
-    # Escape data for safe JS embedding
-    data_b64 = base64.b64encode(data_json.encode()).decode()
-    sid_safe      = sid.replace("'", "\\'")
-    location_safe = (location or "").replace("'", "\\'")
-    username_safe = username.replace("'", "\\'")
+    """Renders counting.html full-screen with data injected at top of <head>."""
+    import os
 
-    # Hide ALL Streamlit chrome, take over full viewport
+    data_b64      = base64.b64encode(data_json.encode()).decode()
+    sid_safe      = sid.replace("\\", "\\\\").replace("'", "\\'")
+    location_safe = (location or "").replace("\\", "\\\\").replace("'", "\\'")
+    username_safe = username.replace("\\", "\\\\").replace("'", "\\'")
+
+    # Hide Streamlit chrome
     st.markdown("""
     <style>
     #MainMenu,footer,header,[data-testid="stToolbar"],
     [data-testid="stDecoration"],[data-testid="stStatusWidget"],
-    section[data-testid="stSidebar"],[data-testid="stSidebarNav"],
-    .stApp > header { display:none!important; }
+    section[data-testid="stSidebar"] { display:none!important; }
     .block-container { padding:0!important; max-width:100%!important; }
-    .stApp { background:#F4F6FA!important; }
-    /* Kill the iframe border from components */
     iframe { border:none!important; }
     </style>
     """, unsafe_allow_html=True)
 
-    # Back to dashboard button (outside the iframe)
     if st.button("← Back to Dashboard"):
-        st.session_state.pop("counting_sid", None)
-        st.session_state.pop("counting_data", None)
+        for k in ["counting_sid","counting_data","counting_location"]:
+            st.session_state.pop(k, None)
         st.rerun()
 
-    # Load counting HTML
-    import os
     html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "counting.html")
     try:
         with open(html_path) as f:
@@ -260,61 +252,57 @@ def render_counting_page(sid, location, username, data_json):
         st.error("counting.html not found in repo root.")
         st.stop()
 
-    # Inject session data right before </body> — no localStorage needed
-    inject = f"""
-    <script>
-    // Data injected by Streamlit — available immediately, no localStorage wait
-    window.__SC_SID__      = '{sid_safe}';
-    window.__SC_LOCATION__ = '{location_safe}';
-    window.__SC_USER__     = '{username_safe}';
-    window.__SC_DATA__     = JSON.parse(atob('{data_b64}'));
-    // Also write to localStorage for offline persistence
-    localStorage.setItem('sc_sid',      window.__SC_SID__);
-    localStorage.setItem('sc_location', window.__SC_LOCATION__);
-    localStorage.setItem('sc_user',     window.__SC_USER__);
-    localStorage.setItem('sc_data',     JSON.stringify(window.__SC_DATA__));
-    localStorage.setItem('sc_streamlit_origin', window.location.origin);
-    </script>
-    """
-    counting_html = counting_html.replace("</body>", inject + "\n</body>")
+    # ── KEY FIX: inject data at very top of <head> BEFORE any other script runs ──
+    # This means window.__SC_* variables exist before init() is called
+    early_inject = f"""<script>
+window.__SC_SID__      = '{sid_safe}';
+window.__SC_LOCATION__ = '{location_safe}';
+window.__SC_USER__     = '{username_safe}';
+window.__SC_DATA__     = JSON.parse(atob('{data_b64}'));
+</script>"""
+    counting_html = counting_html.replace("<head>", "<head>\n" + early_inject, 1)
 
-    # Also patch the init() function to use window.__SC_DATA__ if available
-    patch = """
-    <script>
-    // Override init to use injected data instead of localStorage
-    const _originalInit = init;
-    function init() {
-      if (window.__SC_DATA__ && window.__SC_DATA__.length > 0) {
-        // Use injected data
-        const sid      = window.__SC_SID__;
-        const user     = window.__SC_USER__;
-        const location = window.__SC_LOCATION__;
-        saveCount_counter = parseInt(localStorage.getItem('sc_counter') || '0');
+    # ── Replace init() in counting.html to use injected data ──
+    counting_html = counting_html.replace(
+        "// ─────────────────────────────────────────────\n//  INIT — load from localStorage",
+        "// ─────────────────────────────────────────────\n//  INIT — use injected data or localStorage"
+    )
+    counting_html = counting_html.replace(
+        """function init() {
+  const sid      = localStorage.getItem('sc_sid');
+  const user     = localStorage.getItem('sc_user');
+  const location = localStorage.getItem('sc_location') || '';
+  const rawData  = localStorage.getItem('sc_data');
+  saveCount      = parseInt(localStorage.getItem('sc_counter') || '0');
 
-        document.getElementById('noDataState').style.display = 'none';
-        document.getElementById('headerSid').textContent  = sid;
-        document.getElementById('headerUser').textContent = user || '—';
+  if (!sid || !rawData) {
+    document.getElementById('noDataState').style.display = 'block';
+    return;
+  }""",
+        """function init() {
+  // Use injected data if available (launched from Streamlit dashboard)
+  // Fall back to localStorage (offline / direct open)
+  const injected = window.__SC_DATA__ && window.__SC_DATA__.length > 0;
+  const sid      = injected ? window.__SC_SID__      : localStorage.getItem('sc_sid');
+  const user     = injected ? window.__SC_USER__     : localStorage.getItem('sc_user');
+  const location = injected ? window.__SC_LOCATION__ : (localStorage.getItem('sc_location') || '');
+  const rawData  = injected ? JSON.stringify(window.__SC_DATA__) : localStorage.getItem('sc_data');
+  saveCount_counter = parseInt(localStorage.getItem('sc_counter') || '0');
 
-        products = window.__SC_DATA__;
-        products.forEach(p => {
-          p['physical count'] = parseInt(p['physical count']) || 0;
-          p['difference']     = parseInt(p['difference'])     || 0;
-          p['systems count']  = parseFloat(p['systems count']) || 0;
-          p['last_updated']   = p['last_updated'] || '';
-          p['product code']   = String(p['product code'] || '');
-          p['product name']   = String(p['product name'] || '');
-        });
-        updateSyncBar();
-        renderApp();
-      } else {
-        _originalInit();
-      }
-    }
-    </script>
-    """
-    counting_html = counting_html.replace("</head>", patch + "\n</head>")
+  // Always persist to localStorage so offline works after first load
+  if (injected) {
+    localStorage.setItem('sc_sid',      sid);
+    localStorage.setItem('sc_user',     user);
+    localStorage.setItem('sc_location', location);
+    localStorage.setItem('sc_data',     rawData);
+  }
 
-    # Render full screen — height set to fill viewport
+  if (!sid || !rawData) {
+    document.getElementById('noDataState').style.display = 'block';
+    return;
+  }"""
+    )
+
     st.components.v1.html(counting_html, height=900, scrolling=True)
     st.stop()
 
