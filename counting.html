@@ -261,13 +261,16 @@ let saveCount_counter = 0;
 const SYNC_EVERY = 10;
 
 // ─────────────────────────────────────────────
-//  INIT — load from localStorage
+//  INIT — injected data first, localStorage fallback
 // ─────────────────────────────────────────────
 function init() {
-  const sid      = localStorage.getItem('sc_sid');
-  const user     = localStorage.getItem('sc_user');
-  const location = localStorage.getItem('sc_location') || '';
-  const rawData  = localStorage.getItem('sc_data');
+  // window.__SC_* is injected by Streamlit at top of <head>
+  const inj = window.__SC_DATA__ && window.__SC_DATA__.length > 0;
+
+  const sid     = inj ? window.__SC_SID__      : localStorage.getItem('sc_sid');
+  const user    = inj ? window.__SC_USER__     : localStorage.getItem('sc_user');
+  const rawData = inj ? JSON.stringify(window.__SC_DATA__) : localStorage.getItem('sc_data');
+
   saveCount_counter = parseInt(localStorage.getItem('sc_counter') || '0');
 
   if (!sid || !rawData) {
@@ -275,23 +278,27 @@ function init() {
     return;
   }
 
+  // Always write to localStorage so offline works after first load
+  localStorage.setItem('sc_sid',  sid);
+  localStorage.setItem('sc_user', user || '');
+  localStorage.setItem('sc_data', rawData);
+
   document.getElementById('noDataState').style.display = 'none';
   document.getElementById('headerSid').textContent  = sid;
   document.getElementById('headerUser').textContent = user || '—';
 
   try {
     products = JSON.parse(rawData);
-    // Ensure correct types
     products.forEach(p => {
-      p['physical count'] = parseInt(p['physical count']) || 0;
-      p['difference']     = parseInt(p['difference'])     || 0;
-      p['systems count']  = parseFloat(p['systems count'])  || 0;
+      p['physical count'] = parseInt(p['physical count'])  || 0;
+      p['difference']     = parseInt(p['difference'])      || 0;
+      p['systems count']  = parseFloat(p['systems count']) || 0;
       p['last_updated']   = p['last_updated'] || '';
       p['product code']   = String(p['product code'] || '');
       p['product name']   = String(p['product name'] || '');
     });
   } catch(e) {
-    showToast('⚠️ Failed to load data');
+    showToast('Failed to load data: ' + e.message);
     return;
   }
 

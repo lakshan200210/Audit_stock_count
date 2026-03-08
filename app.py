@@ -217,16 +217,26 @@ def section(t): st.markdown(f'<div class="section-label">{t}</div>', unsafe_allo
 
 
 # ─────────────────────────────────────────────
-#  COUNTING PAGE — full screen HTML, no Streamlit
+#  COUNTING PAGE — full screen HTML
 # ─────────────────────────────────────────────
 def render_counting_page(sid, location, username, data_json):
-    """Renders counting.html full-screen with data injected at top of <head>."""
-    import os
+    import os, re
 
-    data_b64      = base64.b64encode(data_json.encode()).decode()
-    sid_safe      = sid.replace("\\", "\\\\").replace("'", "\\'")
-    location_safe = (location or "").replace("\\", "\\\\").replace("'", "\\'")
-    username_safe = username.replace("\\", "\\\\").replace("'", "\\'")
+    # Build Supabase REST URL from DATABASE_URL
+    db_url       = st.secrets.get("DATABASE_URL", "")
+    supabase_url = ""
+    supabase_key = st.secrets.get("SUPABASE_ANON_KEY", "")
+    m = re.search(r"postgres\.([a-z0-9]+):", db_url)
+    if m:
+        supabase_url = f"https://{m.group(1)}.supabase.co"
+
+    # Encode all data as base64 — safe for any characters
+    data_b64     = base64.b64encode(data_json.encode()).decode()
+    sid_b64      = base64.b64encode(sid.encode()).decode()
+    loc_b64      = base64.b64encode((location or "").encode()).decode()
+    user_b64     = base64.b64encode(username.encode()).decode()
+    surl_b64     = base64.b64encode(supabase_url.encode()).decode()
+    skey_b64     = base64.b64encode(supabase_key.encode()).decode()
 
     # Hide Streamlit chrome
     st.markdown("""
@@ -252,79 +262,19 @@ def render_counting_page(sid, location, username, data_json):
         st.error("counting.html not found in repo root.")
         st.stop()
 
-    # ── KEY FIX: inject data at very top of <head> BEFORE any other script runs ──
-    # This means window.__SC_* variables exist before init() is called
-
-    # Build Supabase REST endpoint from DATABASE_URL
-    # postgresql://postgres.xxxxx:pass@aws-0-region.pooler.supabase.com:6543/postgres
-    # → https://xxxxx.supabase.co
-    db_url    = st.secrets.get("DATABASE_URL", "")
-    supabase_url  = ""
-    supabase_key  = st.secrets.get("SUPABASE_ANON_KEY", "")
-    # Try to extract project ref from pooler URL
-    try:
-        # pooler format: postgres.PROJECTREF:pass@...
-        import re
-        m = re.search(r'postgres\.([a-z0-9]+):', db_url)
-        if m:
-            supabase_url = f"https://{m.group(1)}.supabase.co"
-    except Exception:
-        pass
-
-    early_inject = f"""<script>
-window.__SC_SID__           = '{sid_safe}';
-window.__SC_LOCATION__      = '{location_safe}';
-window.__SC_USER__          = '{username_safe}';
-window.__SC_DATA__          = JSON.parse(atob('{data_b64}'));
-window.__SC_SUPABASE_URL__  = '{supabase_url}';
-window.__SC_SUPABASE_KEY__  = '{supabase_key}';
+    # Inject ALL data as base64 at very top of <head> — no quoting issues possible
+    inject = f"""<script>
+window.__SC_SID__          = atob('{sid_b64}');
+window.__SC_LOCATION__     = atob('{loc_b64}');
+window.__SC_USER__         = atob('{user_b64}');
+window.__SC_DATA__         = JSON.parse(atob('{data_b64}'));
+window.__SC_SUPABASE_URL__ = atob('{surl_b64}');
+window.__SC_SUPABASE_KEY__ = atob('{skey_b64}');
 </script>"""
-    counting_html = counting_html.replace("<head>", "<head>\n" + early_inject, 1)
-
-    # ── Replace init() in counting.html to use injected data ──
-    counting_html = counting_html.replace(
-        "// ─────────────────────────────────────────────\n//  INIT — load from localStorage",
-        "// ─────────────────────────────────────────────\n//  INIT — use injected data or localStorage"
-    )
-    counting_html = counting_html.replace(
-        """function init() {
-  const sid      = localStorage.getItem('sc_sid');
-  const user     = localStorage.getItem('sc_user');
-  const location = localStorage.getItem('sc_location') || '';
-  const rawData  = localStorage.getItem('sc_data');
-  saveCount      = parseInt(localStorage.getItem('sc_counter') || '0');
-
-  if (!sid || !rawData) {
-    document.getElementById('noDataState').style.display = 'block';
-    return;
-  }""",
-        """function init() {
-  // Use injected data if available (launched from Streamlit dashboard)
-  // Fall back to localStorage (offline / direct open)
-  const injected = window.__SC_DATA__ && window.__SC_DATA__.length > 0;
-  const sid      = injected ? window.__SC_SID__      : localStorage.getItem('sc_sid');
-  const user     = injected ? window.__SC_USER__     : localStorage.getItem('sc_user');
-  const location = injected ? window.__SC_LOCATION__ : (localStorage.getItem('sc_location') || '');
-  const rawData  = injected ? JSON.stringify(window.__SC_DATA__) : localStorage.getItem('sc_data');
-  saveCount_counter = parseInt(localStorage.getItem('sc_counter') || '0');
-
-  // Always persist to localStorage so offline works after first load
-  if (injected) {
-    localStorage.setItem('sc_sid',      sid);
-    localStorage.setItem('sc_user',     user);
-    localStorage.setItem('sc_location', location);
-    localStorage.setItem('sc_data',     rawData);
-  }
-
-  if (!sid || !rawData) {
-    document.getElementById('noDataState').style.display = 'block';
-    return;
-  }"""
-    )
+    counting_html = counting_html.replace("<head>", "<head>\n" + inject, 1)
 
     st.components.v1.html(counting_html, height=900, scrolling=True)
     st.stop()
-
 
 # ─────────────────────────────────────────────
 #  SYNC HANDLER — counting page POSTs here
