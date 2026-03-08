@@ -45,7 +45,75 @@ div[data-testid="stTabsContent"] {
     border: none !important;
 }
 
-.stApp { background-color: #F4F6FA !important; font-family: 'DM Sans', sans-serif !important; color: #0D1B2A !important; }
+/* ── FORCE LIGHT MODE — overrides device dark mode ── */
+html, body { color-scheme: light !important; }
+.stApp {
+    background-color: #F4F6FA !important;
+    font-family: 'DM Sans', sans-serif !important;
+    color: #0D1B2A !important;
+    color-scheme: light !important;
+}
+/* Force all text dark */
+.stApp * { color: #0D1B2A !important; }
+
+/* Force page background */
+html, body,
+section[data-testid="stMain"],
+div[data-testid="stAppViewContainer"] {
+    background-color: #F4F6FA !important;
+}
+
+/* Fix inputs */
+input, textarea, select {
+    color: #0D1B2A !important;
+    background-color: #F8FAFC !important;
+    -webkit-text-fill-color: #0D1B2A !important;
+}
+input::placeholder, textarea::placeholder {
+    color: #A0AEC0 !important;
+    -webkit-text-fill-color: #A0AEC0 !important;
+    opacity: 1 !important;
+}
+
+/* Fix selectbox dropdown */
+[data-baseweb="select"] * { color: #0D1B2A !important; }
+[data-baseweb="menu"]       { background-color: #fff !important; }
+[data-baseweb="option"]     { background-color: #fff !important; color: #0D1B2A !important; }
+[data-baseweb="option"]:hover { background-color: #EEF2F7 !important; }
+
+/* Fix tabs */
+.stTabs [data-baseweb="tab"] { color: #5A6A7A !important; }
+.stTabs [aria-selected="true"] { color: #002855 !important; }
+
+/* Fix sidebar */
+section[data-testid="stSidebar"] {
+    background-color: #ffffff !important;
+    border-right: 1px solid #E2E8F0 !important;
+}
+section[data-testid="stSidebar"] * { color: #0D1B2A !important; }
+
+/* Fix expander */
+div[data-testid="stExpander"] {
+    background-color: #ffffff !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 10px !important;
+}
+
+/* Fix checkbox */
+.stCheckbox label, .stCheckbox span { color: #0D1B2A !important; }
+
+/* Fix caption */
+.stCaption, small { color: #8A9BAE !important; }
+
+/* Fix toast */
+div[data-testid="stToast"] {
+    background-color: #ffffff !important;
+    border: 1px solid #E2E8F0 !important;
+}
+
+/* Fix alert boxes */
+div[data-testid="stAlert"] { background-color: transparent !important; }
+
 #MainMenu, footer, header { visibility: hidden; }
 .block-container { padding: 2rem 1.5rem 4rem !important; max-width: 720px !important; }
 
