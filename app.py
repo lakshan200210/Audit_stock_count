@@ -56,6 +56,11 @@ html, body { color-scheme: light !important; }
 /* Force all text dark */
 .stApp * { color: #0D1B2A !important; }
 
+/* ── Blue header box — all text white ── */
+.app-header * { color: #ffffff !important; }
+.app-header .brand span { color: #5BC4FF !important; }
+.app-header .admin-badge { color: #92400E !important; }
+
 /* Force page background */
 html, body,
 section[data-testid="stMain"],
