@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-import sqlite3
+import psycopg2
+import psycopg2.extras
 import hashlib
 import io
 from datetime import datetime
@@ -45,7 +46,7 @@ div[data-testid="stTabsContent"] {
     border: none !important;
 }
 
-/* ── FORCE LIGHT MODE — overrides device dark mode ── */
+/* ── FORCE LIGHT MODE ── */
 html, body { color-scheme: light !important; }
 .stApp {
     background-color: #F4F6FA !important;
@@ -53,22 +54,19 @@ html, body { color-scheme: light !important; }
     color: #0D1B2A !important;
     color-scheme: light !important;
 }
-/* Force all text dark */
 .stApp * { color: #0D1B2A !important; }
 
-/* ── Blue header box — all text white ── */
+/* ── Blue header — white text ── */
 .app-header * { color: #ffffff !important; }
 .app-header .brand span { color: #5BC4FF !important; }
 .app-header .admin-badge { color: #92400E !important; }
 
-/* Force page background */
 html, body,
 section[data-testid="stMain"],
 div[data-testid="stAppViewContainer"] {
     background-color: #F4F6FA !important;
 }
 
-/* Fix inputs */
 input, textarea, select {
     color: #0D1B2A !important;
     background-color: #F8FAFC !important;
@@ -79,44 +77,28 @@ input::placeholder, textarea::placeholder {
     -webkit-text-fill-color: #A0AEC0 !important;
     opacity: 1 !important;
 }
-
-/* Fix selectbox dropdown */
 [data-baseweb="select"] * { color: #0D1B2A !important; }
 [data-baseweb="menu"]       { background-color: #fff !important; }
 [data-baseweb="option"]     { background-color: #fff !important; color: #0D1B2A !important; }
 [data-baseweb="option"]:hover { background-color: #EEF2F7 !important; }
 
-/* Fix tabs */
 .stTabs [data-baseweb="tab"] { color: #5A6A7A !important; }
 .stTabs [aria-selected="true"] { color: #002855 !important; }
 
-/* Fix sidebar */
 section[data-testid="stSidebar"] {
     background-color: #ffffff !important;
     border-right: 1px solid #E2E8F0 !important;
 }
 section[data-testid="stSidebar"] * { color: #0D1B2A !important; }
 
-/* Fix expander */
 div[data-testid="stExpander"] {
     background-color: #ffffff !important;
     border: 1px solid #E2E8F0 !important;
     border-radius: 10px !important;
 }
-
-/* Fix checkbox */
 .stCheckbox label, .stCheckbox span { color: #0D1B2A !important; }
-
-/* Fix caption */
 .stCaption, small { color: #8A9BAE !important; }
-
-/* Fix toast */
-div[data-testid="stToast"] {
-    background-color: #ffffff !important;
-    border: 1px solid #E2E8F0 !important;
-}
-
-/* Fix alert boxes */
+div[data-testid="stToast"] { background-color: #ffffff !important; border: 1px solid #E2E8F0 !important; }
 div[data-testid="stAlert"] { background-color: transparent !important; }
 
 #MainMenu, footer, header { visibility: hidden; }
@@ -157,16 +139,12 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
     border-radius: 999px; padding: 5px 14px; color: #5BC4FF;
     font-size: 0.78rem; font-weight: 500; font-family: 'DM Mono', monospace;
 }
-
-/* ── Admin badge ── */
 .admin-badge {
     display: inline-block; background: #FEF3C7; border: 1px solid #FCD34D;
     border-radius: 6px; padding: 2px 8px; font-size: 0.72rem;
-    font-weight: 700; color: #92400E; letter-spacing: 0.5px;
+    font-weight: 700; color: #92400E !important; letter-spacing: 0.5px;
     margin-left: 8px; vertical-align: middle;
 }
-
-/* ── Section label ── */
 .section-label {
     font-size: 0.71rem; font-weight: 700; text-transform: uppercase;
     letter-spacing: 1.2px; color: #8A9BAE; margin-bottom: 14px;
@@ -200,11 +178,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
 .stButton > button:hover, .stDownloadButton > button:hover {
     transform: translateY(-1px) !important; box-shadow: 0 4px 16px rgba(0,80,158,0.3) !important;
 }
-
-/* ── Danger button (logout / delete) ── */
-.stButton > button[kind="secondary"] {
-    background: linear-gradient(135deg, #7f1d1d, #DC2626) !important;
-}
+.stButton > button *, .stDownloadButton > button * { color: #fff !important; }
 
 /* ── Tabs ── */
 .stTabs [data-baseweb="tab-list"] {
@@ -247,24 +221,77 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
 .log-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #F8FAFC; border: 1px solid #E8EDF3; border-radius: 10px; margin-bottom: 7px; }
 .log-name { font-weight: 600; font-size: 0.88rem; color: #0D1B2A; }
 .log-meta  { font-size: 0.76rem; color: #8A9BAE; margin-top: 1px; }
-.badge-pos  { background: #D1FAE5; color: #065F46; border-radius: 6px; padding: 2px 9px; font-size: 0.79rem; font-weight: 700; font-family: 'DM Mono', monospace; }
-.badge-neg  { background: #FEE2E2; color: #991B1B; border-radius: 6px; padding: 2px 9px; font-size: 0.79rem; font-weight: 700; font-family: 'DM Mono', monospace; }
-.badge-zero { background: #E2E8F0; color: #374151; border-radius: 6px; padding: 2px 9px; font-size: 0.79rem; font-weight: 700; font-family: 'DM Mono', monospace; }
-
-/* ── User row (admin panel) ── */
+.badge-pos  { background: #D1FAE5; color: #065F46 !important; border-radius: 6px; padding: 2px 9px; font-size: 0.79rem; font-weight: 700; font-family: 'DM Mono', monospace; }
+.badge-neg  { background: #FEE2E2; color: #991B1B !important; border-radius: 6px; padding: 2px 9px; font-size: 0.79rem; font-weight: 700; font-family: 'DM Mono', monospace; }
+.badge-zero { background: #E2E8F0; color: #374151 !important; border-radius: 6px; padding: 2px 9px; font-size: 0.79rem; font-weight: 700; font-family: 'DM Mono', monospace; }
 .user-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #F8FAFC; border: 1px solid #E8EDF3; border-radius: 10px; margin-bottom: 7px; }
 .user-name { font-weight: 600; font-size: 0.88rem; color: #0D1B2A; }
 .user-meta { font-size: 0.76rem; color: #8A9BAE; margin-top: 1px; }
-
-/* ── Divider ── */
 .divider { border: none; border-top: 1px solid #E2E8F0; margin: 18px 0; }
-
-/* ── File uploader ── */
 [data-testid="stFileUploaderDropzone"] {
     border: 2px dashed #CBD5E0 !important; border-radius: 12px !important; background: #F8FAFC !important;
 }
 </style>
 """, unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────
+#  DATABASE — SUPABASE (PostgreSQL)
+# ─────────────────────────────────────────────
+@st.cache_resource
+def get_db():
+    """Single persistent connection pool via st.cache_resource."""
+    url = st.secrets["DATABASE_URL"]
+    conn = psycopg2.connect(url, sslmode="require")
+    conn.autocommit = True
+    return conn
+
+def run(sql, params=(), fetch=None):
+    """Execute a query. fetch=None|'one'|'all'."""
+    conn = get_db()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(sql, params)
+        if fetch == "one":  return cur.fetchone()
+        if fetch == "all":  return cur.fetchall()
+    except Exception:
+        # Connection may have timed out — reconnect once
+        conn = psycopg2.connect(st.secrets["DATABASE_URL"], sslmode="require")
+        conn.autocommit = True
+        # Update cache
+        st.cache_resource.clear()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(sql, params)
+        if fetch == "one":  return cur.fetchone()
+        if fetch == "all":  return cur.fetchall()
+
+def init_db():
+    run("""
+        CREATE TABLE IF NOT EXISTS users (
+            username      TEXT PRIMARY KEY,
+            password_hash TEXT NOT NULL,
+            is_admin      BOOLEAN DEFAULT FALSE,
+            created       TEXT
+        )
+    """)
+    run("""
+        CREATE TABLE IF NOT EXISTS audit_sessions (
+            sid      TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            client   TEXT,
+            data     BYTEA,
+            updated  TEXT
+        )
+    """)
+    # Seed default admin if no users exist
+    row = run("SELECT COUNT(*) as c FROM users", fetch="one")
+    if row and row["c"] == 0:
+        run(
+            "INSERT INTO users VALUES (%s, %s, %s, %s)",
+            ("admin", hash_password("admin123"), True, datetime.now().strftime("%Y-%m-%d"))
+        )
+
+init_db()
 
 
 # ─────────────────────────────────────────────
@@ -275,126 +302,73 @@ def hash_password(password: str) -> str:
 
 
 # ─────────────────────────────────────────────
-#  DATABASE
+#  USER CRUD
 # ─────────────────────────────────────────────
-DB_FILE = "audit_storage.db"
-
-def init_db():
-    with sqlite3.connect(DB_FILE) as conn:
-        # Users table
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                username TEXT PRIMARY KEY,
-                password_hash TEXT NOT NULL,
-                is_admin INTEGER DEFAULT 0,
-                created TEXT
-            )
-        """)
-        # Audit sessions table — now includes owner username
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS audit_sessions (
-                sid      TEXT PRIMARY KEY,
-                username TEXT NOT NULL,
-                client   TEXT,
-                data     BLOB,
-                updated  TEXT
-            )
-        """)
-        # Migrate old sessions that have no username column
-        cols = [r[1] for r in conn.execute("PRAGMA table_info(audit_sessions)").fetchall()]
-        if "username" not in cols:
-            conn.execute("ALTER TABLE audit_sessions ADD COLUMN username TEXT NOT NULL DEFAULT 'admin'")
-        if "updated" not in cols:
-            conn.execute("ALTER TABLE audit_sessions ADD COLUMN updated TEXT")
-
-        # Seed default admin if no users exist yet
-        count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-        if count == 0:
-            conn.execute(
-                "INSERT INTO users VALUES (?, ?, ?, ?)",
-                ("admin", hash_password("admin123"), 1, datetime.now().strftime("%Y-%m-%d"))
-            )
-        conn.commit()
-
-# ── User CRUD ──
 def get_user(username: str):
-    with sqlite3.connect(DB_FILE) as conn:
-        row = conn.execute(
-            "SELECT username, password_hash, is_admin FROM users WHERE username=?",
-            (username.strip().lower(),)
-        ).fetchone()
-    return row  # (username, password_hash, is_admin) or None
+    return run(
+        "SELECT username, password_hash, is_admin FROM users WHERE username=%s",
+        (username.strip().lower(),), fetch="one"
+    )
 
 def get_all_users():
-    with sqlite3.connect(DB_FILE) as conn:
-        return pd.read_sql_query("SELECT username, is_admin, created FROM users ORDER BY username", conn)
+    rows = run("SELECT username, is_admin, created FROM users ORDER BY username", fetch="all")
+    return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["username","is_admin","created"])
 
 def create_user(username: str, password: str, is_admin: bool = False) -> bool:
     username = username.strip().lower()
     if not username or not password:
         return False
-    try:
-        with sqlite3.connect(DB_FILE) as conn:
-            conn.execute(
-                "INSERT INTO users VALUES (?, ?, ?, ?)",
-                (username, hash_password(password), int(is_admin), datetime.now().strftime("%Y-%m-%d"))
-            )
-            conn.commit()
-        return True
-    except sqlite3.IntegrityError:
-        return False  # username already exists
+    existing = get_user(username)
+    if existing:
+        return False
+    run(
+        "INSERT INTO users VALUES (%s, %s, %s, %s)",
+        (username, hash_password(password), is_admin, datetime.now().strftime("%Y-%m-%d"))
+    )
+    return True
 
 def delete_user(username: str):
-    with sqlite3.connect(DB_FILE) as conn:
-        conn.execute("DELETE FROM users WHERE username=?", (username,))
-        conn.commit()
+    run("DELETE FROM users WHERE username=%s", (username,))
 
 def change_password(username: str, new_password: str):
-    with sqlite3.connect(DB_FILE) as conn:
-        conn.execute(
-            "UPDATE users SET password_hash=? WHERE username=?",
-            (hash_password(new_password), username)
-        )
-        conn.commit()
+    run("UPDATE users SET password_hash=%s WHERE username=%s",
+        (hash_password(new_password), username))
 
-# ── Audit session CRUD ──
+
+# ─────────────────────────────────────────────
+#  AUDIT SESSION CRUD
+# ─────────────────────────────────────────────
 def save_audit(sid: str, username: str, client: str, df: pd.DataFrame):
     buf = io.BytesIO()
     df.to_pickle(buf)
-    with sqlite3.connect(DB_FILE) as conn:
-        conn.execute(
-            "INSERT OR REPLACE INTO audit_sessions VALUES (?,?,?,?,?)",
-            (sid, username, client, buf.getvalue(), datetime.now().strftime("%Y-%m-%d %H:%M"))
-        )
-        conn.commit()
+    data = psycopg2.Binary(buf.getvalue())
+    ts   = datetime.now().strftime("%Y-%m-%d %H:%M")
+    run("""
+        INSERT INTO audit_sessions (sid, username, client, data, updated)
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (sid) DO UPDATE
+        SET data=%s, client=%s, updated=%s
+    """, (sid, username, client, data, ts, data, client, ts))
 
-def load_audit(sid: str) -> pd.DataFrame | None:
-    with sqlite3.connect(DB_FILE) as conn:
-        row = conn.execute("SELECT data FROM audit_sessions WHERE sid=?", (sid,)).fetchone()
-    return pd.read_pickle(io.BytesIO(row[0])) if row else None
+def load_audit(sid: str):
+    row = run("SELECT data FROM audit_sessions WHERE sid=%s", (sid,), fetch="one")
+    if row:
+        return pd.read_pickle(io.BytesIO(bytes(row["data"])))
+    return None
 
 def get_user_sessions(username: str) -> pd.DataFrame:
-    """Returns only sessions belonging to this user (or all if admin)."""
-    with sqlite3.connect(DB_FILE) as conn:
-        return pd.read_sql_query(
-            "SELECT sid, client, updated FROM audit_sessions WHERE username=? ORDER BY updated DESC",
-            conn, params=(username,)
-        )
+    rows = run(
+        "SELECT sid, client, updated FROM audit_sessions WHERE username=%s ORDER BY updated DESC",
+        (username,), fetch="all"
+    )
+    return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["sid","client","updated"])
 
 def get_all_sessions_admin() -> pd.DataFrame:
-    with sqlite3.connect(DB_FILE) as conn:
-        return pd.read_sql_query(
-            "SELECT sid, username, client, updated FROM audit_sessions ORDER BY updated DESC", conn
-        )
-
-def session_belongs_to(sid: str, username: str) -> bool:
-    with sqlite3.connect(DB_FILE) as conn:
-        row = conn.execute(
-            "SELECT 1 FROM audit_sessions WHERE sid=? AND username=?", (sid, username)
-        ).fetchone()
-    return row is not None
-
-init_db()
+    rows = run(
+        "SELECT sid, username, client, updated FROM audit_sessions ORDER BY updated DESC",
+        fetch="all"
+    )
+    return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["sid","username","client","updated"])
 
 
 # ─────────────────────────────────────────────
@@ -408,15 +382,15 @@ def normalise_df(df):
     if missing:
         st.error(f"Missing columns: {', '.join(missing)}")
         st.stop()
-    df["product code"]   = df["product code"].astype(str).str.strip()
-    df["product name"]   = df["product name"].astype(str).str.strip()
-    df["systems count"]  = pd.to_numeric(df["systems count"], errors="coerce").fillna(0)
+    df["product code"]  = df["product code"].astype(str).str.strip()
+    df["product name"]  = df["product name"].astype(str).str.strip()
+    df["systems count"] = pd.to_numeric(df["systems count"], errors="coerce").fillna(0)
     if "physical count" in df.columns:
         df["physical count"] = pd.to_numeric(df["physical count"], errors="coerce").fillna(0).astype(int)
     else:
         df["physical count"] = 0
-    df["difference"]     = 0
-    df["last_updated"]   = ""
+    df["difference"]   = 0
+    df["last_updated"] = ""
     return df
 
 def pct_done(df):
@@ -438,11 +412,11 @@ def section(label):
 
 
 # ─────────────────────────────────────────────
-#  AUTH — LOGIN SCREEN
+#  AUTH
 # ─────────────────────────────────────────────
 if "current_user" not in st.session_state:
-    st.session_state.current_user  = None
-    st.session_state.is_admin      = False
+    st.session_state.current_user = None
+    st.session_state.is_admin     = False
 
 if st.session_state.current_user is None:
     render_header()
@@ -455,32 +429,27 @@ if st.session_state.current_user is None:
         if st.button("Sign In →", use_container_width=True):
             uname = username_input.strip().lower()
             row   = get_user(uname)
-            if row and row[1] == hash_password(password_input):
-                st.session_state.current_user = row[0]
-                st.session_state.is_admin     = bool(row[2])
+            if row and row["password_hash"] == hash_password(password_input):
+                st.session_state.current_user = row["username"]
+                st.session_state.is_admin     = bool(row["is_admin"])
                 st.rerun()
             else:
                 st.error("Incorrect username or password.")
     st.stop()
 
 
-# ─────────────────────────────────────────────
-#  SHORTHAND FOR CURRENT SESSION
-# ─────────────────────────────────────────────
-CU       = st.session_state.current_user   # e.g. "john"
+CU       = st.session_state.current_user
 IS_ADMIN = st.session_state.is_admin
 
 
 # ─────────────────────────────────────────────
-#  SIDEBAR — logout + change password + admin
+#  SIDEBAR
 # ─────────────────────────────────────────────
 with st.sidebar:
     st.markdown(f"**Signed in as:** `{CU}`")
     if IS_ADMIN:
         st.markdown("**Role:** Admin 🔑")
     st.divider()
-
-    # Change password
     with st.expander("🔒 Change Password"):
         cp1 = st.text_input("New password", type="password", key="cp1")
         cp2 = st.text_input("Confirm password", type="password", key="cp2")
@@ -492,7 +461,6 @@ with st.sidebar:
             else:
                 change_password(CU, cp1)
                 st.success("Password updated!")
-
     st.divider()
     if st.button("🚪 Sign Out", use_container_width=True):
         for k in ["current_user", "is_admin", "active_sid", "active_client", "df"]:
@@ -501,17 +469,16 @@ with st.sidebar:
 
 
 # ─────────────────────────────────────────────
-#  SESSION SELECTION  (dashboard)
+#  SESSION SELECTION
 # ─────────────────────────────────────────────
 if "active_sid" not in st.session_state:
     render_header(username=CU, is_admin=IS_ADMIN)
 
-    # Admin gets an extra "Admin Panel" tab
-    tabs = (["  ✨  New Audit  ", "  📁  My Audits  ", "  ⚙️  Admin Panel  "]
-            if IS_ADMIN else
-            ["  ✨  New Audit  ", "  📁  My Audits  "])
+    tabs     = (["  ✨  New Audit  ", "  📁  My Audits  ", "  ⚙️  Admin Panel  "]
+                if IS_ADMIN else
+                ["  ✨  New Audit  ", "  📁  My Audits  "])
     tab_objs = st.tabs(tabs)
-    t1, t2 = tab_objs[0], tab_objs[1]
+    t1, t2   = tab_objs[0], tab_objs[1]
 
     # ── New Audit ──
     with t1:
@@ -528,11 +495,9 @@ if "active_sid" not in st.session_state:
                 elif not file_new:
                     st.warning("Please upload a master sheet.")
                 else:
-                    # Check uniqueness across ALL users (sid is a global primary key)
-                    with sqlite3.connect(DB_FILE) as _c:
-                        exists = _c.execute("SELECT 1 FROM audit_sessions WHERE sid=?", (sid_new,)).fetchone()
-                    if exists:
-                        st.error(f"Session ID **{sid_new}** is already taken. Choose another.")
+                    existing = run("SELECT 1 FROM audit_sessions WHERE sid=%s", (sid_new,), fetch="one")
+                    if existing:
+                        st.error(f"Session ID **{sid_new}** is already taken.")
                     else:
                         try:
                             df = normalise_df(pd.read_excel(file_new))
@@ -562,10 +527,10 @@ if "active_sid" not in st.session_state:
                         </div>""", unsafe_allow_html=True)
                     with c2:
                         if st.button("Load", key=f"load_{row['sid']}", use_container_width=True):
-                            loaded = load_audit(row['sid'])
+                            loaded = load_audit(row["sid"])
                             if loaded is not None:
-                                st.session_state.active_sid    = row['sid']
-                                st.session_state.active_client = row['client']
+                                st.session_state.active_sid    = row["sid"]
+                                st.session_state.active_client = row["client"]
                                 st.session_state.df            = loaded
                                 st.rerun()
                             else:
@@ -577,7 +542,6 @@ if "active_sid" not in st.session_state:
         with t3:
             at1, at2, at3 = st.tabs(["  👥  Users  ", "  📋  All Audits  ", "  ➕  Add User  "])
 
-            # Users list
             with at1:
                 with st.container(border=True):
                     section("All Users")
@@ -585,7 +549,7 @@ if "active_sid" not in st.session_state:
                     for _, u in all_users.iterrows():
                         uc1, uc2 = st.columns([4, 1])
                         with uc1:
-                            role = "🔑 Admin" if u['is_admin'] else "👤 Auditor"
+                            role = "🔑 Admin" if u["is_admin"] else "👤 Auditor"
                             st.markdown(f"""
                             <div class="user-row">
                               <div>
@@ -594,16 +558,14 @@ if "active_sid" not in st.session_state:
                               </div>
                             </div>""", unsafe_allow_html=True)
                         with uc2:
-                            # Prevent admin from deleting themselves
-                            if u['username'] != CU:
+                            if u["username"] != CU:
                                 if st.button("Delete", key=f"del_{u['username']}", use_container_width=True):
-                                    delete_user(u['username'])
+                                    delete_user(u["username"])
                                     st.success(f"Deleted {u['username']}")
                                     st.rerun()
                             else:
                                 st.caption("(you)")
 
-            # All audits across all users
             with at2:
                 with st.container(border=True):
                     section("All Audit Sessions")
@@ -623,14 +585,13 @@ if "active_sid" not in st.session_state:
                                 </div>""", unsafe_allow_html=True)
                             with sc2:
                                 if st.button("Load", key=f"aload_{row['sid']}", use_container_width=True):
-                                    loaded = load_audit(row['sid'])
+                                    loaded = load_audit(row["sid"])
                                     if loaded is not None:
-                                        st.session_state.active_sid    = row['sid']
-                                        st.session_state.active_client = row['client']
+                                        st.session_state.active_sid    = row["sid"]
+                                        st.session_state.active_client = row["client"]
                                         st.session_state.df            = loaded
                                         st.rerun()
 
-            # Add new user
             with at3:
                 with st.container(border=True):
                     section("Create New User")
@@ -662,7 +623,6 @@ n_vars  = int(((df["difference"] != 0) & (df["last_updated"] != "")).sum())
 
 render_header(username=CU, session_id=sid, is_admin=IS_ADMIN)
 
-# ── Overview ──
 with st.container(border=True):
     section("Session Overview")
     m1, m2, m3 = st.columns(3)
@@ -675,7 +635,6 @@ with st.container(border=True):
       <div class="prog-track"><div class="prog-fill" style="width:{pct}%"></div></div>
     </div>""", unsafe_allow_html=True)
 
-# ── Count Entry ──
 with st.container(border=True):
     section("Count Entry")
     search = st.text_input("Search", placeholder="🔍  Product name or code…", label_visibility="collapsed")
@@ -686,7 +645,6 @@ with st.container(border=True):
             df["product code"].str.contains(search.strip(), case=False, na=False)
         )
         matches = df[mask]
-
         if matches.empty:
             st.warning("No products found.")
         else:
@@ -703,7 +661,6 @@ with st.container(border=True):
 
                 st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
                 q1, q2, q3 = st.columns(3)
-
                 with q1:
                     st.markdown(f'<div class="stat-box"><div class="stat-label">System Qty</div><div class="stat-value">{sys_qty}</div></div>', unsafe_allow_html=True)
                 with q2:
@@ -726,7 +683,6 @@ with st.container(border=True):
                     st.toast(f"Saved {p_code} ✅")
                     st.rerun()
 
-# ── Recent Activity ──
 recent = df[df["last_updated"] != ""].sort_values("last_updated", ascending=False).head(5)
 if not recent.empty:
     with st.container(border=True):
@@ -745,7 +701,6 @@ if not recent.empty:
               {badge}
             </div>""", unsafe_allow_html=True)
 
-# ── Footer Actions ──
 st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 fa1, fa2, fa3 = st.columns(3)
 
