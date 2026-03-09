@@ -192,12 +192,14 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
 .prog-head { display: flex; justify-content: space-between; font-size: 0.77rem; color: #8A9BAE; margin-bottom: 6px; }
 .prog-track { background: #E2E8F0; border-radius: 999px; height: 7px; overflow: hidden; }
 .prog-fill  { background: linear-gradient(90deg, #002855, #5BC4FF); height: 100%; border-radius: 999px; }
-.log-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #F8FAFC; border: 1px solid #E8EDF3; border-radius: 10px; margin-bottom: 7px; }
-.log-name { font-weight: 600; font-size: 0.88rem; color: #0D1B2A; word-break: break-word; }
+.log-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 14px; background: #F8FAFC; border: 1px solid #E8EDF3; border-radius: 10px; margin-bottom: 7px; }
+.log-left { flex: 1; min-width: 0; }
+.log-name { font-weight: 600; font-size: 0.88rem; color: #0D1B2A; word-break: break-word; white-space: normal; }
 .log-meta  { font-size: 0.76rem; color: #8A9BAE; margin-top: 1px; }
-.badge-pos  { background: #D1FAE5; color: #065F46 !important; border-radius: 6px; padding: 2px 9px; font-size: 0.79rem; font-weight: 700; font-family: 'DM Mono', monospace; white-space: nowrap; }
-.badge-neg  { background: #FEE2E2; color: #991B1B !important; border-radius: 6px; padding: 2px 9px; font-size: 0.79rem; font-weight: 700; font-family: 'DM Mono', monospace; white-space: nowrap; }
-.badge-zero { background: #E2E8F0; color: #374151 !important; border-radius: 6px; padding: 2px 9px; font-size: 0.79rem; font-weight: 700; font-family: 'DM Mono', monospace; white-space: nowrap; }
+.log-badge { flex-shrink: 0; }
+.badge-pos  { background: #D1FAE5; color: #065F46 !important; border-radius: 6px; padding: 3px 10px; font-size: 0.79rem; font-weight: 700; font-family: 'DM Mono', monospace; white-space: nowrap; display: inline-block; }
+.badge-neg  { background: #FEE2E2; color: #991B1B !important; border-radius: 6px; padding: 3px 10px; font-size: 0.79rem; font-weight: 700; font-family: 'DM Mono', monospace; white-space: nowrap; display: inline-block; }
+.badge-zero { background: #E2E8F0; color: #374151 !important; border-radius: 6px; padding: 3px 10px; font-size: 0.79rem; font-weight: 700; font-family: 'DM Mono', monospace; white-space: nowrap; display: inline-block; }
 .user-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #F8FAFC; border: 1px solid #E8EDF3; border-radius: 10px; margin-bottom: 7px; }
 .user-name { font-weight: 600; font-size: 0.88rem; color: #0D1B2A; }
 .user-meta { font-size: 0.76rem; color: #8A9BAE; margin-top: 1px; }
@@ -837,11 +839,11 @@ if recent_mask.any():
                      f'<span class="badge-zero">±0</span>')
             st.markdown(f"""
             <div class="log-row">
-              <div style="flex:1;min-width:0">
+              <div class="log-left">
                 <div class="log-name">{r['product name']}</div>
                 <div class="log-meta">{r['product code']} · {r['last_updated']}</div>
               </div>
-              <div style="margin-left:10px">{badge}</div>
+              <div class="log-badge">{badge}</div>
             </div>""", unsafe_allow_html=True)
 
 # ── FOOTER ──
