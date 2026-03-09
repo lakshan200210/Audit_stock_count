@@ -1,0 +1,38 @@
+name: Auto Cleanup & Keep Alive
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # runs every day at 2:00 AM UTC
+  workflow_dispatch:        # lets you run it manually from GitHub
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install psycopg2-binary
+
+      - name: Ping database (prevent Supabase sleep)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python - <<'PYEOF'
+          import os, psycopg2
+          conn = psycopg2.connect(os.environ["DATABASE_URL"], connect_timeout=15)
+          cur  = conn.cursor()
+          cur.execute("SELECT 1")
+          conn.close()
+          print("✅ Database is awake")
+          PYEOF
+
+      - name: Run cleanup
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python cleanup.py
