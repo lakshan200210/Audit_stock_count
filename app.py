@@ -476,7 +476,7 @@ if not st.session_state.current_user:
     with tab_signup:
         with st.container(border=True):
             section("Create Account")
-            st.caption("Anyone can create an account. The very first account registered becomes the admin.")
+            st.caption("if this is your first login create a account.ad if you fail to login in 7 days your accout wll be deleted our system,  you can make new one in that case.")
             su_user  = st.text_input("Choose a username", placeholder="e.g. john", key="su_user")
             su_pass  = st.text_input("Choose a password", type="password", key="su_pass")
             su_pass2 = st.text_input("Confirm password",  type="password", key="su_pass2")
