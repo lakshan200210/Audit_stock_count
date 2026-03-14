@@ -310,15 +310,17 @@ if st.session_state.s2f_sel_idx is not None:
                     st.session_state.s2f_sel_idx = None
                     st.rerun()
 
-# Recent counts
-recent_mask = st.session_state.s2f_df["last_updated"] != ""
-if recent_mask.any():
-    recent = (st.session_state.s2f_df.loc[recent_mask,
-              ["product name","product code","difference","last_updated"]]
-              .sort_values("last_updated",ascending=False).head(5))
+# Recent counts — always read fresh from session_state
+_recent_df   = st.session_state.s2f_df
+_recent_mask = _recent_df["last_updated"] != ""
+if _recent_mask.any():
+    # Sort by index descending so most recently saved row appears first
+    _recent = (_recent_df[_recent_mask]
+               [["product name","product code","difference","last_updated"]]
+               .iloc[::-1].head(5))
     with st.container(border=True):
         section("Recent Counts")
-        for _, r in recent.iterrows():
+        for _, r in _recent.iterrows():
             d = int(r["difference"])
             badge = (f'<span class="badge-pos">+{d}</span>' if d>0 else
                      f'<span class="badge-neg">{d}</span>'  if d<0 else

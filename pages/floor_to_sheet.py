@@ -263,15 +263,16 @@ if st.session_state.f2s_sel_idx is not None:
                     st.session_state.f2s_sel_idx = None
                     st.rerun()
 
-# Recent counts
-recent_mask = st.session_state.f2s_df["last_updated"] != ""
-if recent_mask.any():
-    recent = (st.session_state.f2s_df.loc[recent_mask,
-              ["product name","product code","physical count","last_updated"]]
-              .sort_values("last_updated",ascending=False).head(5))
+# Recent counts — always read fresh from session_state
+_recent_df   = st.session_state.f2s_df
+_recent_mask = _recent_df["last_updated"] != ""
+if _recent_mask.any():
+    _recent = (_recent_df[_recent_mask]
+               [["product name","product code","physical count","last_updated"]]
+               .iloc[::-1].head(5))
     with st.container(border=True):
         section("Recent Counts")
-        for _, r in recent.iterrows():
+        for _, r in _recent.iterrows():
             cnt = int(r["physical count"])
             st.markdown(f"""
             <div class="log-row">
