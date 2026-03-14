@@ -133,55 +133,41 @@ def sync_status(counter):
         st.markdown(f'<div class="sync-bar"><span class="sync-dot-pending"></span>{pending} unsaved · auto-backup in {10-pending}</div>', unsafe_allow_html=True)
 
 
-# ── AUTH CHECK ─────────────────────────────────────────────────────
+# ── AUTH + SESSION CHECK ──────────────────────────────────────────
 if "current_user" not in st.session_state or not st.session_state.current_user:
     st.warning("Please sign in first.")
     if st.button("← Go to Sign In"): st.switch_page("app.py")
     st.stop()
 
-CU  = st.session_state.current_user
-SID = st.session_state.get("f2s_sid")
-LOC = st.session_state.get("f2s_loc","")
+CU = st.session_state.current_user
 
-# ── LOAD SESSION ───────────────────────────────────────────────────
-qp = st.query_params
-if not SID:
-    sid_qp = qp.get("sid","")
-    if sid_qp:
-        df_loaded = load_session(sid_qp)
-        if df_loaded is not None:
-            row = run("SELECT client FROM audit_sessions WHERE sid=%s",(sid_qp,),fetch="one")
-            st.session_state.f2s_sid     = sid_qp
-            st.session_state.f2s_loc     = row["client"] if row else ""
-            st.session_state.f2s_df      = df_loaded
-            st.session_state.f2s_counter = 0
-            st.session_state.f2s_sel_idx = None
-            SID = sid_qp
-            LOC = st.session_state.f2s_loc
+# Pick up session passed from app.py via session_state
+if "active_sid" in st.session_state and st.session_state.active_sid:
+    if st.session_state.get("f2s_sid") != st.session_state.active_sid:
+        st.session_state.f2s_sid     = st.session_state.active_sid
+        st.session_state.f2s_loc     = st.session_state.get("active_loc","")
+        st.session_state.f2s_df      = st.session_state.active_df
+        st.session_state.f2s_counter = 0
+        st.session_state.f2s_sel_idx = None
 
-if not SID:
-    st.components.v1.html("""
-    <script>
-    const sid=localStorage.getItem("bdo_sid");
-    if(sid){const url=new URL(window.parent.location.href);
-      url.searchParams.set("sid",sid);
-      window.parent.location.href=url.toString();}
-    else{window.parent.location.href=window.parent.location.origin;}
-    </script>""", height=0)
+if "f2s_sid" not in st.session_state or not st.session_state.f2s_sid:
+    st.warning("No session loaded. Please go back and select a session.")
+    if st.button("← Back to Dashboard"): st.switch_page("app.py")
     st.stop()
 
-if "f2s_df" not in st.session_state:
-    df_loaded = load_session(SID)
-    if df_loaded is None: st.error("Session not found."); st.stop()
-    row = run("SELECT client FROM audit_sessions WHERE sid=%s",(SID,),fetch="one")
-    st.session_state.f2s_df      = df_loaded
-    st.session_state.f2s_loc     = row["client"] if row else ""
-    st.session_state.f2s_counter = 0
-    st.session_state.f2s_sel_idx = None
-    LOC = st.session_state.f2s_loc
+if "f2s_df" not in st.session_state or st.session_state.f2s_df is None:
+    df_loaded = load_session(st.session_state.f2s_sid)
+    if df_loaded is None:
+        st.error("Session not found in database.")
+        if st.button("← Back"): st.switch_page("app.py")
+        st.stop()
+    st.session_state.f2s_df = df_loaded
 
-if "f2s_counter"  not in st.session_state: st.session_state.f2s_counter  = 0
-if "f2s_sel_idx"  not in st.session_state: st.session_state.f2s_sel_idx  = None
+if "f2s_counter" not in st.session_state: st.session_state.f2s_counter = 0
+if "f2s_sel_idx" not in st.session_state: st.session_state.f2s_sel_idx = None
+
+SID = st.session_state.f2s_sid
+LOC = st.session_state.get("f2s_loc","")
 
 
 # ══════════════════════════════════════════════════════════════════

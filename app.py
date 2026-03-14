@@ -411,9 +411,10 @@ with t_new:
                             df["difference"]     = 0
                             df["last_updated"]   = ""
                             save_session(sid_in, CU, loc_in, df, mode="sheet_to_floor")
-                            set_ls("bdo_sid",    sid_in)
-                            set_ls("bdo_client", loc_in)
-                            set_ls("bdo_mode",   "sheet_to_floor")
+                            st.session_state.active_sid    = sid_in
+                            st.session_state.active_loc    = loc_in
+                            st.session_state.active_mode   = "sheet_to_floor"
+                            st.session_state.active_df     = df
                             st.switch_page("pages/sheet_to_floor.py")
                     except Exception as e:
                         st.error(f"Failed to read file: {e}")
@@ -439,9 +440,10 @@ with t_new:
                             df["physical count"] = 0
                             df["last_updated"]   = ""
                             save_session(sid_in, CU, loc_in, df, mode="floor_to_sheet")
-                            set_ls("bdo_sid",    sid_in)
-                            set_ls("bdo_client", loc_in)
-                            set_ls("bdo_mode",   "floor_to_sheet")
+                            st.session_state.active_sid    = sid_in
+                            st.session_state.active_loc    = loc_in
+                            st.session_state.active_mode   = "floor_to_sheet"
+                            st.session_state.active_df     = df
                             st.switch_page("pages/floor_to_sheet.py")
                     except Exception as e:
                         st.error(f"Failed to read file: {e}")
@@ -468,12 +470,18 @@ with t_my:
                     </div>""", unsafe_allow_html=True)
                 with c2:
                     if st.button("▶ Open", key=f"open_{row['sid']}", use_container_width=True):
-                        set_ls("bdo_sid",    row["sid"])
-                        set_ls("bdo_client", row["client"] or "")
-                        set_ls("bdo_mode",   mode)
-                        target = ("pages/sheet_to_floor.py" if mode=="sheet_to_floor"
-                                  else "pages/floor_to_sheet.py")
-                        st.switch_page(target)
+                        db_row = run("SELECT data,client FROM audit_sessions WHERE sid=%s",
+                                     (row["sid"],), fetch="one")
+                        if db_row:
+                            try:    df_open = pd.read_pickle(io.BytesIO(bytes(db_row["data"])), compression="gzip")
+                            except: df_open = pd.read_pickle(io.BytesIO(bytes(db_row["data"])))
+                            st.session_state.active_sid  = row["sid"]
+                            st.session_state.active_loc  = db_row["client"] or ""
+                            st.session_state.active_mode = mode
+                            st.session_state.active_df   = df_open
+                            target = ("pages/sheet_to_floor.py" if mode=="sheet_to_floor"
+                                      else "pages/floor_to_sheet.py")
+                            st.switch_page(target)
 
 
 # ── ADMIN PANEL ────────────────────────────────────────────────────
