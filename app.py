@@ -14,226 +14,119 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-st.markdown("""
+SHARED_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
-
-.stApp,
-section[data-testid="stMain"],
-div[data-testid="stAppViewContainer"],
-div[data-testid="stMainBlockContainer"],
-div[data-testid="stVerticalBlock"],
-div[data-testid="stHorizontalBlock"],
-div[data-testid="column"],
-div[data-testid="stMarkdownContainer"],
-div[data-testid="stForm"],
-div[data-testid="stWidgetLabel"],
-div[data-testid="stCaptionContainer"],
-div[data-testid="stNumberInput"] > div,
-div[data-testid="stTextInput"] > div,
-div[data-testid="stSelectbox"] > div,
-div[data-baseweb="tab-panel"],
-div[data-baseweb="form-control-label"],
-div[data-baseweb="block"],
-div[data-baseweb="card"],
-div.stTabs,
-div[data-testid="stTabsContent"] {
-    background: transparent !important;
-    box-shadow: none !important;
-    border: none !important;
-}
-
-html, body { color-scheme: light !important; }
-.stApp {
-    background-color: #F4F6FA !important;
-    font-family: 'DM Sans', sans-serif !important;
-    color: #0D1B2A !important;
-    color-scheme: light !important;
-}
-.stApp * { color: #0D1B2A !important; }
-.app-header * { color: #ffffff !important; }
-.app-header .brand span { color: #5BC4FF !important; }
-.app-header .admin-badge { color: #92400E !important; }
-
-html, body,
-section[data-testid="stMain"],
-div[data-testid="stAppViewContainer"] { background-color: #F4F6FA !important; }
-
-input, textarea, select {
-    color: #0D1B2A !important;
-    background-color: #F8FAFC !important;
-    -webkit-text-fill-color: #0D1B2A !important;
-}
-input::placeholder, textarea::placeholder {
-    color: #A0AEC0 !important;
-    -webkit-text-fill-color: #A0AEC0 !important;
-    opacity: 1 !important;
-}
-[data-baseweb="select"] * { color: #0D1B2A !important; }
-[data-baseweb="menu"]       { background-color: #fff !important; }
-[data-baseweb="option"]     { background-color: #fff !important; color: #0D1B2A !important; }
-[data-baseweb="option"]:hover { background-color: #EEF2F7 !important; }
-.stTabs [data-baseweb="tab"] { color: #5A6A7A !important; }
-.stTabs [aria-selected="true"] { color: #002855 !important; }
-section[data-testid="stSidebar"] {
-    background-color: #ffffff !important;
-    border-right: 1px solid #E2E8F0 !important;
-}
-section[data-testid="stSidebar"] * { color: #0D1B2A !important; }
-div[data-testid="stExpander"] {
-    background-color: #ffffff !important;
-    border: 1px solid #E2E8F0 !important;
-    border-radius: 10px !important;
-}
-.stCheckbox label, .stCheckbox span { color: #0D1B2A !important; }
-.stCaption, small { color: #8A9BAE !important; }
-div[data-testid="stToast"] { background-color: #ffffff !important; border: 1px solid #E2E8F0 !important; }
-div[data-testid="stAlert"] { background-color: transparent !important; }
-#MainMenu, footer, header { visibility: hidden; }
-.block-container { padding: 2rem 1.5rem 4rem !important; max-width: 720px !important; }
-
-div[data-testid="stVerticalBlockBorderWrapper"] {
-    background: #ffffff !important;
-    border: 1px solid #E2E8F0 !important;
-    border-radius: 16px !important;
-    box-shadow: 0 2px 14px rgba(0,0,0,0.06) !important;
-    padding: 4px 0 !important;
-    margin-bottom: 18px !important;
-}
-div[data-testid="stVerticalBlockBorderWrapper"] > div {
-    background: transparent !important;
-    box-shadow: none !important;
-    border: none !important;
-}
-
-.app-header {
-    background: linear-gradient(135deg, #002855 0%, #00509E 100%);
-    border-radius: 16px; padding: 22px 28px; margin-bottom: 24px;
-    display: flex; align-items: center; justify-content: space-between;
-    box-shadow: 0 4px 24px rgba(0,40,85,0.18);
-}
-.app-header .brand { color: #fff; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
-.app-header .brand span { color: #5BC4FF; }
-.app-header .right { display: flex; align-items: center; gap: 10px; }
-.app-header .user-pill {
-    background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.28);
-    border-radius: 999px; padding: 5px 14px; color: #fff;
-    font-size: 0.78rem; font-weight: 500; font-family: 'DM Mono', monospace;
-}
-.app-header .session-pill {
-    background: rgba(91,196,255,0.18); border: 1px solid rgba(91,196,255,0.4);
-    border-radius: 999px; padding: 5px 14px; color: #5BC4FF;
-    font-size: 0.78rem; font-weight: 500; font-family: 'DM Mono', monospace;
-}
-.admin-badge {
-    display: inline-block; background: #FEF3C7; border: 1px solid #FCD34D;
-    border-radius: 6px; padding: 2px 8px; font-size: 0.72rem;
-    font-weight: 700; color: #92400E !important; letter-spacing: 0.5px;
-    margin-left: 8px; vertical-align: middle;
-}
-.section-label {
-    font-size: 0.71rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 1.2px; color: #8A9BAE; margin-bottom: 14px;
-}
-.stTextInput > div > div > input,
-.stNumberInput > div > div > input {
-    border: 1.5px solid #CBD5E0 !important; border-radius: 10px !important;
-    padding: 10px 14px !important; font-family: 'DM Sans', sans-serif !important;
-    font-size: 0.95rem !important; background: #F8FAFC !important; color: #0D1B2A !important;
-}
-.stTextInput > div > div > input:focus,
-.stNumberInput > div > div > input:focus {
-    border-color: #00509E !important; box-shadow: 0 0 0 3px rgba(0,80,158,0.1) !important;
-    outline: none !important;
-}
-.stSelectbox > div > div > div {
-    border: 1.5px solid #CBD5E0 !important; border-radius: 10px !important; background: #F8FAFC !important;
-}
-.stButton > button, .stDownloadButton > button {
-    background: linear-gradient(135deg, #002855 0%, #00509E 100%) !important;
-    color: #fff !important; border: none !important; border-radius: 10px !important;
-    font-family: 'DM Sans', sans-serif !important; font-weight: 600 !important;
-    font-size: 0.88rem !important; height: auto !important; min-height: 46px !important;
-    box-shadow: 0 2px 8px rgba(0,80,158,0.22) !important;
-    transition: transform 0.15s, box-shadow 0.15s !important;
-    white-space: normal !important; word-break: break-word !important;
-    text-align: left !important; padding: 10px 14px !important; line-height: 1.4 !important;
-}
-.stButton > button:hover, .stDownloadButton > button:hover {
-    transform: translateY(-1px) !important; box-shadow: 0 4px 16px rgba(0,80,158,0.3) !important;
-}
-.stButton > button *, .stDownloadButton > button * { color: #fff !important; }
-.stTabs [data-baseweb="tab-list"] {
-    background: #EEF2F7 !important; border-radius: 10px !important;
-    padding: 4px !important; gap: 4px !important; border-bottom: none !important;
-}
-.stTabs [data-baseweb="tab"] {
-    border-radius: 8px !important; font-weight: 600 !important; font-size: 0.88rem !important;
-    color: #5A6A7A !important; padding: 8px 20px !important;
-    border: none !important; background: transparent !important;
-}
-.stTabs [aria-selected="true"] {
-    background: #fff !important; color: #002855 !important;
-    box-shadow: 0 1px 6px rgba(0,0,0,0.1) !important;
-}
-.stat-box { background: #F4F6FA; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 10px; text-align: center; }
-.stat-label { font-size: 0.69rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #8A9BAE; margin-bottom: 5px; }
-.stat-value { font-size: 1.85rem; font-weight: 700; color: #002855; line-height: 1; }
-.vbox { border-radius: 12px; padding: 14px 10px; text-align: center; }
-.vbox.neutral  { background: #F4F6FA; border: 1px solid #E2E8F0; }
-.vbox.positive { background: #ECFDF5; border: 1px solid #6EE7B7; }
-.vbox.negative { background: #FEF2F2; border: 1px solid #FCA5A5; }
-.vbox-label { font-size: 0.69rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #8A9BAE; margin-bottom: 5px; }
-.vbox-value { font-size: 1.85rem; font-weight: 700; line-height: 1; }
-.vbox.neutral  .vbox-value { color: #0D1B2A; }
-.vbox.positive .vbox-value { color: #059669; }
-.vbox.negative .vbox-value { color: #DC2626; }
-.prog-wrap { margin-top: 16px; }
-.prog-head { display: flex; justify-content: space-between; font-size: 0.77rem; color: #8A9BAE; margin-bottom: 6px; }
-.prog-track { background: #E2E8F0; border-radius: 999px; height: 7px; overflow: hidden; }
-.prog-fill  { background: linear-gradient(90deg, #002855, #5BC4FF); height: 100%; border-radius: 999px; }
-.log-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 14px; background: #F8FAFC; border: 1px solid #E8EDF3; border-radius: 10px; margin-bottom: 7px; }
-.log-left { flex: 1; min-width: 0; }
-.log-name { font-weight: 600; font-size: 0.88rem; color: #0D1B2A; word-break: break-word; white-space: normal; }
-.log-meta  { font-size: 0.76rem; color: #8A9BAE; margin-top: 1px; }
-.log-badge { flex-shrink: 0; }
-.badge-pos  { background: #D1FAE5; color: #065F46 !important; border-radius: 6px; padding: 3px 10px; font-size: 0.79rem; font-weight: 700; font-family: 'DM Mono', monospace; white-space: nowrap; display: inline-block; }
-.badge-neg  { background: #FEE2E2; color: #991B1B !important; border-radius: 6px; padding: 3px 10px; font-size: 0.79rem; font-weight: 700; font-family: 'DM Mono', monospace; white-space: nowrap; display: inline-block; }
-.badge-zero { background: #E2E8F0; color: #374151 !important; border-radius: 6px; padding: 3px 10px; font-size: 0.79rem; font-weight: 700; font-family: 'DM Mono', monospace; white-space: nowrap; display: inline-block; }
-.user-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #F8FAFC; border: 1px solid #E8EDF3; border-radius: 10px; margin-bottom: 7px; }
-.user-name { font-weight: 600; font-size: 0.88rem; color: #0D1B2A; }
-.user-meta { font-size: 0.76rem; color: #8A9BAE; margin-top: 1px; }
-.divider { border: none; border-top: 1px solid #E2E8F0; margin: 18px 0; }
-.sync-bar {
-    background: #EEF2F7; border: 1px solid #E2E8F0; border-radius: 10px;
-    padding: 10px 16px; display: flex; align-items: center;
-    justify-content: space-between; margin-bottom: 14px; font-size: 0.82rem;
-}
-.sync-dot-ok      { width:8px; height:8px; border-radius:50%; background:#10B981; display:inline-block; margin-right:6px; }
-.sync-dot-pending { width:8px; height:8px; border-radius:50%; background:#F59E0B; display:inline-block; margin-right:6px; }
-[data-testid="stFileUploaderDropzone"] {
-    border: 2px dashed #CBD5E0 !important; border-radius: 12px !important; background: #F8FAFC !important;
-}
-.product-card {
-    background: #EEF5FF; border: 2px solid #00509E;
-    border-radius: 14px; padding: 14px 16px; margin-bottom: 14px;
-}
-.product-card .pc-code { font-family: 'DM Mono', monospace; font-size: 0.76rem; color: #5A6A7A; margin-bottom: 4px; }
-.product-card .pc-name { font-size: 0.98rem; font-weight: 700; color: #002855; line-height: 1.35; word-break: break-word; }
+.stApp,section[data-testid="stMain"],div[data-testid="stAppViewContainer"],
+div[data-testid="stMainBlockContainer"],div[data-testid="stVerticalBlock"],
+div[data-testid="stHorizontalBlock"],div[data-testid="column"],
+div[data-testid="stMarkdownContainer"],div[data-testid="stForm"],
+div[data-testid="stWidgetLabel"],div[data-testid="stCaptionContainer"],
+div[data-testid="stNumberInput"]>div,div[data-testid="stTextInput"]>div,
+div[data-testid="stSelectbox"]>div,div[data-baseweb="tab-panel"],
+div[data-baseweb="form-control-label"],div[data-baseweb="block"],
+div[data-baseweb="card"],div.stTabs,div[data-testid="stTabsContent"]{
+  background:transparent!important;box-shadow:none!important;border:none!important}
+html,body{color-scheme:light!important}
+.stApp{background:#F4F6FA!important;font-family:'DM Sans',sans-serif!important;color:#0D1B2A!important}
+.stApp *{color:#0D1B2A!important}
+.app-header *{color:#fff!important}
+.app-header .brand span{color:#5BC4FF!important}
+html,body,section[data-testid="stMain"],
+div[data-testid="stAppViewContainer"]{background:#F4F6FA!important}
+input,textarea,select{color:#0D1B2A!important;background:#F8FAFC!important;-webkit-text-fill-color:#0D1B2A!important}
+input::placeholder,textarea::placeholder{color:#A0AEC0!important;-webkit-text-fill-color:#A0AEC0!important;opacity:1!important}
+[data-baseweb="select"] *{color:#0D1B2A!important}
+[data-baseweb="menu"]{background:#fff!important}
+[data-baseweb="option"]{background:#fff!important;color:#0D1B2A!important}
+[data-baseweb="option"]:hover{background:#EEF2F7!important}
+.stTabs [data-baseweb="tab"]{color:#5A6A7A!important}
+.stTabs [aria-selected="true"]{color:#002855!important}
+section[data-testid="stSidebar"]{background:#fff!important;border-right:1px solid #E2E8F0!important}
+section[data-testid="stSidebar"] *{color:#0D1B2A!important}
+div[data-testid="stExpander"]{background:#fff!important;border:1px solid #E2E8F0!important;border-radius:10px!important}
+.stCheckbox label,.stCheckbox span{color:#0D1B2A!important}
+.stCaption,small{color:#8A9BAE!important}
+div[data-testid="stToast"]{background:#fff!important;border:1px solid #E2E8F0!important}
+div[data-testid="stAlert"]{background:transparent!important}
+#MainMenu,footer,header{visibility:hidden}
+.block-container{padding:2rem 1.5rem 4rem!important;max-width:720px!important}
+div[data-testid="stVerticalBlockBorderWrapper"]{background:#fff!important;
+  border:1px solid #E2E8F0!important;border-radius:16px!important;
+  box-shadow:0 2px 14px rgba(0,0,0,.06)!important;padding:4px 0!important;margin-bottom:18px!important}
+div[data-testid="stVerticalBlockBorderWrapper"]>div{background:transparent!important;
+  box-shadow:none!important;border:none!important}
+.app-header{background:linear-gradient(135deg,#002855,#00509E);border-radius:16px;
+  padding:22px 28px;margin-bottom:24px;display:flex;align-items:center;
+  justify-content:space-between;box-shadow:0 4px 24px rgba(0,40,85,.18)}
+.app-header .brand{font-size:1.4rem;font-weight:700;letter-spacing:-.5px}
+.app-header .right{display:flex;align-items:center;gap:10px}
+.app-header .user-pill{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);
+  border-radius:999px;padding:5px 14px;font-size:.78rem;font-weight:500;font-family:'DM Mono',monospace}
+.admin-badge{display:inline-block;background:#FEF3C7;border:1px solid #FCD34D;
+  border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:700;
+  color:#92400E!important;letter-spacing:.5px;margin-left:8px;vertical-align:middle}
+.section-label{font-size:.71rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:1.2px;color:#8A9BAE;margin-bottom:14px}
+.stTextInput>div>div>input,.stNumberInput>div>div>input{
+  border:1.5px solid #CBD5E0!important;border-radius:10px!important;
+  padding:10px 14px!important;font-size:.95rem!important;
+  background:#F8FAFC!important;color:#0D1B2A!important}
+.stTextInput>div>div>input:focus,.stNumberInput>div>div>input:focus{
+  border-color:#00509E!important;box-shadow:0 0 0 3px rgba(0,80,158,.1)!important;outline:none!important}
+.stButton>button,.stDownloadButton>button{
+  background:linear-gradient(135deg,#002855,#00509E)!important;
+  color:#fff!important;border:none!important;border-radius:10px!important;
+  font-weight:600!important;font-size:.88rem!important;
+  height:auto!important;min-height:46px!important;
+  box-shadow:0 2px 8px rgba(0,80,158,.22)!important;
+  white-space:normal!important;word-break:break-word!important;
+  text-align:left!important;padding:10px 14px!important;line-height:1.4!important}
+.stButton>button *,.stDownloadButton>button *{color:#fff!important}
+.stTabs [data-baseweb="tab-list"]{background:#EEF2F7!important;border-radius:10px!important;
+  padding:4px!important;gap:4px!important;border-bottom:none!important}
+.stTabs [data-baseweb="tab"]{border-radius:8px!important;font-weight:600!important;
+  font-size:.88rem!important;padding:8px 20px!important;border:none!important;background:transparent!important}
+.stTabs [aria-selected="true"]{background:#fff!important;color:#002855!important;
+  box-shadow:0 1px 6px rgba(0,0,0,.1)!important}
+[data-testid="stFileUploaderDropzone"]{border:2px dashed #CBD5E0!important;
+  border-radius:12px!important;background:#F8FAFC!important}
+.divider{border:none;border-top:1px solid #E2E8F0;margin:18px 0}
+/* Mode cards */
+.mode-card{border-radius:16px;padding:20px;margin-bottom:12px;cursor:pointer;
+  border:2px solid #E2E8F0;background:#fff;transition:all .2s}
+.mode-card.s2f{border-color:#00509E;background:#EEF5FF}
+.mode-card.f2s{border-color:#059669;background:#ECFDF5}
+.mode-icon{font-size:2rem;margin-bottom:8px}
+.mode-title{font-size:1rem;font-weight:700;color:#002855;margin-bottom:4px}
+.mode-title.green{color:#065F46}
+.mode-desc{font-size:.82rem;color:#5A6A7A;line-height:1.5}
+.mode-excel{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;
+  padding:8px 12px;margin-top:10px;font-size:.78rem;color:#374151}
+.mode-excel code{background:#E2E8F0;border-radius:4px;padding:1px 5px;
+  font-family:'DM Mono',monospace;font-size:.76rem;color:#002855!important}
+/* Session list */
+.sess-row{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:11px 14px;background:#F8FAFC;border:1px solid #E8EDF3;border-radius:10px;margin-bottom:7px}
+.sess-left{flex:1;min-width:0}
+.sess-sid{font-weight:600;font-size:.9rem;color:#002855}
+.sess-meta{font-size:.76rem;color:#8A9BAE;margin-top:2px}
+.mode-pill-s2f{display:inline-block;background:#EEF5FF;border:1px solid #93C5FD;
+  border-radius:6px;padding:1px 7px;font-size:.7rem;font-weight:700;color:#1D4ED8!important;margin-right:5px}
+.mode-pill-f2s{display:inline-block;background:#ECFDF5;border:1px solid #6EE7B7;
+  border-radius:6px;padding:1px 7px;font-size:.7rem;font-weight:700;color:#065F46!important;margin-right:5px}
+.user-row{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;background:#F8FAFC;border:1px solid #E8EDF3;border-radius:10px;margin-bottom:7px}
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(SHARED_CSS, unsafe_allow_html=True)
 
 
-# ─────────────────────────────────────────────
-#  SECURITY
-# ─────────────────────────────────────────────
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.strip().encode()).hexdigest()
+# ── SECURITY ───────────────────────────────────────────────────────
+def hash_password(p): return hashlib.sha256(p.strip().encode()).hexdigest()
 
 
-# ─────────────────────────────────────────────
-#  DATABASE
-# ─────────────────────────────────────────────
+# ── DATABASE ───────────────────────────────────────────────────────
 @st.cache_resource(show_spinner="Connecting…")
 def get_db():
     conn = psycopg2.connect(st.secrets["DATABASE_URL"], connect_timeout=15)
@@ -254,178 +147,111 @@ def run(sql, params=(), fetch=None):
     if fetch == "all": return cur.fetchall()
 
 def init_db():
-    run("""CREATE TABLE IF NOT EXISTS users (
-            username TEXT PRIMARY KEY, password_hash TEXT NOT NULL,
-            is_admin BOOLEAN DEFAULT FALSE, created TEXT)""")
-    run("""CREATE TABLE IF NOT EXISTS audit_sessions (
-            sid TEXT PRIMARY KEY, username TEXT NOT NULL,
-            client TEXT, data BYTEA, updated TEXT)""")
-    # First user ever becomes admin automatically
-    # No seeded admin — users sign up themselves
+    run("""CREATE TABLE IF NOT EXISTS users(
+            username TEXT PRIMARY KEY,password_hash TEXT NOT NULL,
+            is_admin BOOLEAN DEFAULT FALSE,created TEXT)""")
+    run("""CREATE TABLE IF NOT EXISTS audit_sessions(
+            sid TEXT PRIMARY KEY,username TEXT NOT NULL,
+            client TEXT,data BYTEA,updated TEXT,
+            mode TEXT DEFAULT 'sheet_to_floor')""")
+    # Add mode column if upgrading from old version
+    run("ALTER TABLE audit_sessions ADD COLUMN IF NOT EXISTS mode TEXT DEFAULT 'sheet_to_floor'")
 
 init_db()
 
 
-# ─────────────────────────────────────────────
-#  USER CRUD
-# ─────────────────────────────────────────────
-def get_user(username):
-    return run("SELECT username, password_hash, is_admin FROM users WHERE username=%s",
-               (username.strip().lower(),), fetch="one")
+# ── USER CRUD ──────────────────────────────────────────────────────
+def get_user(u):
+    return run("SELECT username,password_hash,is_admin FROM users WHERE username=%s",
+               (u.strip().lower(),), fetch="one")
 
 def get_all_users():
-    rows = run("SELECT username, is_admin, created FROM users ORDER BY created ASC", fetch="all")
+    rows = run("SELECT username,is_admin,created FROM users ORDER BY created ASC", fetch="all")
     return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["username","is_admin","created"])
 
 def user_count():
-    row = run("SELECT COUNT(*) as c FROM users", fetch="one")
-    return row["c"] if row else 0
+    r = run("SELECT COUNT(*) as c FROM users", fetch="one")
+    return r["c"] if r else 0
 
-def create_user(username, password, is_admin=False):
-    username = username.strip().lower()
-    if not username or not password or get_user(username):
-        return False
-    run("INSERT INTO users VALUES (%s,%s,%s,%s)",
-        (username, hash_password(password), is_admin, datetime.now().strftime("%Y-%m-%d")))
+def create_user(u, p, is_admin=False):
+    u = u.strip().lower()
+    if not u or not p or get_user(u): return False
+    run("INSERT INTO users VALUES(%s,%s,%s,%s)",
+        (u, hash_password(p), is_admin, datetime.now().strftime("%Y-%m-%d")))
     return True
 
-def delete_user(username):
-    run("DELETE FROM users WHERE username=%s", (username,))
-
-def set_admin(username, is_admin):
-    run("UPDATE users SET is_admin=%s WHERE username=%s", (is_admin, username))
-
-def change_password(username, new_password):
-    run("UPDATE users SET password_hash=%s WHERE username=%s",
-        (hash_password(new_password), username))
+def delete_user(u): run("DELETE FROM users WHERE username=%s", (u,))
+def set_admin(u, v): run("UPDATE users SET is_admin=%s WHERE username=%s", (v, u))
+def change_password(u, p): run("UPDATE users SET password_hash=%s WHERE username=%s", (hash_password(p), u))
 
 
-# ─────────────────────────────────────────────
-#  AUDIT CRUD
-# ─────────────────────────────────────────────
-def df_to_bytes(df: pd.DataFrame) -> bytes:
+# ── SESSION CRUD ───────────────────────────────────────────────────
+def df_to_bytes(df):
     cols = ["product code","product name","systems count","physical count","difference","last_updated"]
-    save_df = df[[c for c in cols if c in df.columns]]
-    buf = io.BytesIO()
-    save_df.to_pickle(buf, compression="gzip")
+    buf  = io.BytesIO()
+    df[[c for c in cols if c in df.columns]].to_pickle(buf, compression="gzip")
     return buf.getvalue()
 
-def bytes_to_df(raw: bytes) -> pd.DataFrame:
-    try:
-        return pd.read_pickle(io.BytesIO(raw), compression="gzip")
-    except Exception:
-        return pd.read_pickle(io.BytesIO(raw))
+def bytes_to_df(raw):
+    try:    return pd.read_pickle(io.BytesIO(raw), compression="gzip")
+    except: return pd.read_pickle(io.BytesIO(raw))
 
-def save_audit_db(sid, username, client, df):
+def save_session(sid, username, client, df, mode="sheet_to_floor"):
     data = psycopg2.Binary(df_to_bytes(df))
     ts   = datetime.now().strftime("%Y-%m-%d %H:%M")
-    run("""INSERT INTO audit_sessions (sid,username,client,data,updated)
-           VALUES (%s,%s,%s,%s,%s)
-           ON CONFLICT (sid) DO UPDATE
-           SET data=%s, client=%s, updated=%s""",
-        (sid, username, client, data, ts, data, client, ts))
+    run("""INSERT INTO audit_sessions(sid,username,client,data,updated,mode)
+           VALUES(%s,%s,%s,%s,%s,%s)
+           ON CONFLICT(sid) DO UPDATE
+           SET data=%s,client=%s,updated=%s,mode=%s""",
+        (sid,username,client,data,ts,mode, data,client,ts,mode))
 
-def load_audit_db(sid):
+def load_session(sid):
     row = run("SELECT data FROM audit_sessions WHERE sid=%s", (sid,), fetch="one")
     return bytes_to_df(bytes(row["data"])) if row else None
 
 def get_user_sessions(username):
-    rows = run("SELECT sid, client, updated FROM audit_sessions WHERE username=%s ORDER BY updated DESC",
-               (username,), fetch="all")
-    return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["sid","client","updated"])
+    rows = run("""SELECT sid,client,updated,mode FROM audit_sessions
+                  WHERE username=%s ORDER BY updated DESC""", (username,), fetch="all")
+    return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["sid","client","updated","mode"])
 
-def get_all_sessions_admin():
-    rows = run("SELECT sid, username, client, updated FROM audit_sessions ORDER BY updated DESC", fetch="all")
-    return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["sid","username","client","updated"])
+def get_all_sessions():
+    rows = run("SELECT sid,username,client,updated,mode FROM audit_sessions ORDER BY updated DESC", fetch="all")
+    return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["sid","username","client","updated","mode"])
 
 
-# ─────────────────────────────────────────────
-#  LOCAL STORAGE HELPERS
-# ─────────────────────────────────────────────
-def df_to_json(df: pd.DataFrame) -> str:
-    return df.to_json(orient="records")
-
-def json_to_df(json_str: str) -> pd.DataFrame:
-    records = json.loads(json_str)
-    df = pd.DataFrame(records)
-    df["physical count"] = pd.to_numeric(df["physical count"], errors="coerce").fillna(0).astype(int)
-    df["difference"]     = pd.to_numeric(df["difference"],     errors="coerce").fillna(0).astype(int)
-    df["last_updated"]   = df["last_updated"].fillna("").astype(str)
-    df["systems count"]  = pd.to_numeric(df["systems count"],  errors="coerce").fillna(0)
-    df["product code"]   = df["product code"].astype(str)
-    df["product name"]   = df["product name"].astype(str)
-    return df
-
-def set_local_storage(key: str, value: str):
-    safe = value.replace("`", "\\`").replace("\\", "\\\\")
+# ── LOCAL STORAGE ──────────────────────────────────────────────────
+def set_ls(key, value):
+    safe = value.replace("`","\\`").replace("\\","\\\\")
     st.components.v1.html(f'<script>localStorage.setItem("{key}",`{safe}`);</script>', height=0)
 
-def clear_local_storage():
+def clear_ls():
     st.components.v1.html("""
-    <script>["bdo_user","bdo_sid","bdo_client","bdo_df","bdo_counter"].forEach(k=>localStorage.removeItem(k));</script>
+    <script>["bdo_user","bdo_sid","bdo_client","bdo_mode"].forEach(k=>localStorage.removeItem(k));</script>
     """, height=0)
 
 
-# ─────────────────────────────────────────────
-#  HELPERS
-# ─────────────────────────────────────────────
-REQUIRED = {"product name", "product code", "systems count"}
-
-def normalise_df(df):
-    df.columns = [c.strip().lower() for c in df.columns]
-    missing = REQUIRED - set(df.columns)
-    if missing:
-        st.error(f"Missing columns: {', '.join(missing)}")
-        st.stop()
-    df["product code"]   = df["product code"].astype(str).str.strip()
-    df["product name"]   = df["product name"].astype(str).str.strip()
-    df["systems count"]  = pd.to_numeric(df["systems count"], errors="coerce").fillna(0)
-    df["physical count"] = 0
-    df["difference"]     = 0
-    df["last_updated"]   = ""
-    return df
-
-def render_header(username="", session_id="", is_admin=False):
-    admin_badge = '<span class="admin-badge">ADMIN</span>' if is_admin else ""
-    user_pill   = f'<span class="user-pill">👤 {username}{admin_badge}</span>' if username else ""
-    sess_pill   = f'<span class="session-pill">📍 {session_id}</span>' if session_id else ""
+# ── UI HELPERS ─────────────────────────────────────────────────────
+def render_header(username="", is_admin=False):
+    badge = '<span class="admin-badge">ADMIN</span>' if is_admin else ""
+    pill  = f'<span class="user-pill">👤 {username}{badge}</span>' if username else ""
     st.markdown(f"""
     <div class="app-header">
-        <div class="brand">📦 Stock <span>Count Pro</span></div>
-        <div class="right">{sess_pill}{user_pill}</div>
+      <div class="brand">📦 Stock <span style="color:#5BC4FF">Count Pro</span></div>
+      <div class="right">{pill}</div>
     </div>""", unsafe_allow_html=True)
 
-def section(label):
-    st.markdown(f'<div class="section-label">{label}</div>', unsafe_allow_html=True)
-
-def sync_status(counter: int):
-    pending = counter % 10
-    if pending == 0:
-        st.markdown('<div class="sync-bar"><span><span class="sync-dot-ok"></span>All changes backed up</span></div>', unsafe_allow_html=True)
-    else:
-        left = 10 - pending
-        st.markdown(f'<div class="sync-bar"><span><span class="sync-dot-pending"></span>{pending} unsaved · auto-backup in {left}</span></div>', unsafe_allow_html=True)
+def section(t):
+    st.markdown(f'<div class="section-label">{t}</div>', unsafe_allow_html=True)
 
 
-# ─────────────────────────────────────────────
-#  SESSION STATE INIT
-# ─────────────────────────────────────────────
-if "ls_checked" not in st.session_state:
-    st.session_state.ls_checked      = False
-    st.session_state.current_user    = None
-    st.session_state.is_admin        = False
-    st.session_state.active_sid      = None
-    st.session_state.active_client   = None
-    st.session_state.df              = None
-    st.session_state.save_counter    = 0
-    st.session_state.selected_idx    = None
-    st.session_state.auth_tab        = "login"   # "login" | "signup"
+# ── SESSION STATE INIT ─────────────────────────────────────────────
+if "init" not in st.session_state:
+    st.session_state.init         = True
+    st.session_state.current_user = None
+    st.session_state.is_admin     = False
 
-qp         = st.query_params
-ls_user    = qp.get("ls_user",    "")
-ls_sid     = qp.get("ls_sid",     "")
-ls_client  = qp.get("ls_client",  "")
-ls_counter = qp.get("ls_counter", "0")
+qp      = st.query_params
+ls_user = qp.get("ls_user", "")
 
 if ls_user and not st.session_state.current_user:
     row = get_user(ls_user)
@@ -434,76 +260,60 @@ if ls_user and not st.session_state.current_user:
         st.session_state.is_admin     = bool(row["is_admin"])
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  AUTH — Login + Self-service Sign Up
-# ═══════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════
+#  AUTH
+# ══════════════════════════════════════════════════════════════════
 if not st.session_state.current_user:
     render_header()
 
-    # Auto-restore from localStorage
     st.components.v1.html("""
     <script>
-    const u = localStorage.getItem("bdo_user");
-    if (u) {
-        const url = new URL(window.parent.location.href);
-        url.searchParams.set("ls_user",    u);
-        url.searchParams.set("ls_sid",     localStorage.getItem("bdo_sid")    || "");
-        url.searchParams.set("ls_client",  localStorage.getItem("bdo_client") || "");
-        url.searchParams.set("ls_counter", localStorage.getItem("bdo_counter")|| "0");
-        window.parent.location.href = url.toString();
-    }
-    </script>
-    """, height=0)
+    const u=localStorage.getItem("bdo_user");
+    if(u){const url=new URL(window.parent.location.href);
+      url.searchParams.set("ls_user",u);
+      window.parent.location.href=url.toString();}
+    </script>""", height=0)
 
-    tab_login, tab_signup = st.tabs(["  🔑  Sign In  ", "  ✏️  Create Account  "])
+    tab_in, tab_up = st.tabs(["  🔑  Sign In  ","  ✏️  Create Account  "])
 
-    with tab_login:
+    with tab_in:
         with st.container(border=True):
             section("Sign In")
-            username_input = st.text_input("Username", placeholder="your username", key="li_user")
-            password_input = st.text_input("Password", type="password", placeholder="••••••••", key="li_pass")
+            u_in = st.text_input("Username", placeholder="your username", key="li_u")
+            p_in = st.text_input("Password", type="password", placeholder="••••••••", key="li_p")
             if st.button("Sign In →", use_container_width=True, key="li_btn"):
-                uname = username_input.strip().lower()
-                row   = get_user(uname)
-                if row and row["password_hash"] == hash_password(password_input):
+                row = get_user(u_in)
+                if row and row["password_hash"] == hash_password(p_in):
                     st.session_state.current_user = row["username"]
                     st.session_state.is_admin     = bool(row["is_admin"])
-                    set_local_storage("bdo_user", row["username"])
+                    set_ls("bdo_user", row["username"])
                     st.rerun()
                 else:
                     st.error("Incorrect username or password.")
 
-    with tab_signup:
+    with tab_up:
         with st.container(border=True):
             section("Create Account")
-            st.caption("if this is your first login create a account.If you fail to login in 7 days your accout wll be deleted our system, You can make new one in that case.")
-            su_user  = st.text_input("Choose a username", placeholder="e.g. john", key="su_user")
-            su_pass  = st.text_input("Choose a password", type="password", key="su_pass")
-            su_pass2 = st.text_input("Confirm password",  type="password", key="su_pass2")
+            st.caption("The first account registered becomes the admin automatically.")
+            su_u  = st.text_input("Choose a username", placeholder="e.g. john", key="su_u")
+            su_p  = st.text_input("Choose a password", type="password", key="su_p")
+            su_p2 = st.text_input("Confirm password",  type="password", key="su_p2")
             if st.button("Create Account →", use_container_width=True, key="su_btn"):
-                u = su_user.strip().lower()
-                if not u or not su_pass:
-                    st.warning("Username and password are required.")
-                elif len(su_pass) < 4:
-                    st.warning("Password must be at least 4 characters.")
-                elif su_pass != su_pass2:
-                    st.error("Passwords do not match.")
-                elif get_user(u):
-                    st.error(f"Username **{u}** is already taken. Please choose another.")
+                u = su_u.strip().lower()
+                if not u or not su_p:          st.warning("Username and password required.")
+                elif len(su_p) < 4:            st.warning("Password must be at least 4 characters.")
+                elif su_p != su_p2:            st.error("Passwords do not match.")
+                elif get_user(u):              st.error(f"Username **{u}** already taken.")
                 else:
-                    # First ever user becomes admin
-                    is_first = user_count() == 0
-                    create_user(u, su_pass, is_admin=is_first)
+                    first = user_count() == 0
+                    create_user(u, su_p, is_admin=first)
                     row = get_user(u)
                     st.session_state.current_user = row["username"]
                     st.session_state.is_admin     = bool(row["is_admin"])
-                    set_local_storage("bdo_user", row["username"])
-                    if is_first:
-                        st.success(f"Welcome, **{u}**! You're the first user — your account has admin access.")
-                    else:
-                        st.success(f"Account created! Welcome, **{u}**.")
+                    set_ls("bdo_user", row["username"])
+                    msg = "Welcome! You're the first user — admin access granted." if first else f"Account created! Welcome, **{u}**."
+                    st.success(msg)
                     st.rerun()
-
     st.stop()
 
 
@@ -511,9 +321,7 @@ CU       = st.session_state.current_user
 IS_ADMIN = st.session_state.is_admin
 
 
-# ─────────────────────────────────────────────
-#  SIDEBAR
-# ─────────────────────────────────────────────
+# ── SIDEBAR ────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown(f"**Signed in as:** `{CU}`")
     st.markdown("**Role:** Admin 🔑" if IS_ADMIN else "**Role:** Counter 📦")
@@ -522,368 +330,198 @@ with st.sidebar:
         cp1 = st.text_input("New password",     type="password", key="cp1")
         cp2 = st.text_input("Confirm password", type="password", key="cp2")
         if st.button("Update Password"):
-            if not cp1: st.warning("Cannot be empty.")
-            elif cp1 != cp2: st.error("Passwords do not match.")
-            else: change_password(CU, cp1); st.success("Password updated!")
+            if not cp1:        st.warning("Cannot be empty.")
+            elif cp1 != cp2:   st.error("Passwords do not match.")
+            else:              change_password(CU, cp1); st.success("Updated!")
     st.divider()
     if st.button("🚪 Sign Out", use_container_width=True):
-        clear_local_storage()
-        for k in ["current_user","is_admin","active_sid","active_client",
-                  "df","save_counter","selected_idx"]:
+        clear_ls()
+        for k in ["current_user","is_admin","init"]:
             st.session_state.pop(k, None)
         st.query_params.clear()
         st.rerun()
 
 
-# ─────────────────────────────────────────────
-#  RESTORE ACTIVE SESSION FROM localStorage
-# ─────────────────────────────────────────────
-if not st.session_state.active_sid and ls_sid:
-    st.components.v1.html("""
-    <script>
-    const sid=localStorage.getItem("bdo_sid"),client=localStorage.getItem("bdo_client"),
-          df=localStorage.getItem("bdo_df"),ctr=localStorage.getItem("bdo_counter")||"0";
-    if(sid&&df){
-        const url=new URL(window.parent.location.href);
-        url.searchParams.set("ls_sid",sid);url.searchParams.set("ls_client",client||"");
-        url.searchParams.set("ls_counter",ctr);url.searchParams.set("ls_df",df);
-        window.parent.location.href=url.toString();
-    }
-    </script>""", height=0)
+# ══════════════════════════════════════════════════════════════════
+#  DASHBOARD — session setup + mode selection
+# ══════════════════════════════════════════════════════════════════
+render_header(username=CU, is_admin=IS_ADMIN)
 
-ls_df = qp.get("ls_df", "")
-if ls_df and st.session_state.active_sid is None and ls_sid:
-    try:
-        st.session_state.active_sid    = ls_sid
-        st.session_state.active_client = ls_client
-        st.session_state.df            = json_to_df(ls_df)
-        st.session_state.save_counter  = int(ls_counter)
-    except Exception:
-        pass
+tab_labels = (["  ✨  New Count  ","  📁  My Sessions  ","  ⚙️  Admin Panel  "]
+              if IS_ADMIN else ["  ✨  New Count  ","  📁  My Sessions  "])
+tabs = st.tabs(tab_labels)
+t_new, t_my = tabs[0], tabs[1]
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  DASHBOARD
-# ═══════════════════════════════════════════════════════════════════
-if not st.session_state.active_sid:
-    render_header(username=CU, is_admin=IS_ADMIN)
-
-    tab_labels = (["  ✨  New Count  ","  📁  My Sessions  ","  ⚙️  Admin Panel  "]
-                  if IS_ADMIN else
-                  ["  ✨  New Count  ","  📁  My Sessions  "])
-    tab_objs = st.tabs(tab_labels)
-    t1, t2   = tab_objs[0], tab_objs[1]
-
-    # ── NEW COUNT ──
-    with t1:
-        with st.container(border=True):
-            section("Start New Stock Count")
-            sid_new    = st.text_input("Session ID", placeholder="e.g. SC-2026-001")
-            client_new = st.text_input("Warehouse / Location", placeholder="e.g. Main Warehouse")
-            file_new   = st.file_uploader("Upload Master Sheet (.xlsx)", type=["xlsx"])
-            if file_new: st.caption(f"📎 {file_new.name} — ready")
-            if st.button("🚀  Start Stock Count", use_container_width=True):
-                if not sid_new: st.warning("Please enter a Session ID.")
-                elif not file_new: st.warning("Please upload a master sheet.")
-                else:
-                    if run("SELECT 1 FROM audit_sessions WHERE sid=%s", (sid_new,), fetch="one"):
-                        st.error(f"Session **{sid_new}** already taken.")
-                    else:
-                        try:
-                            df = normalise_df(pd.read_excel(file_new))
-                            st.session_state.active_sid    = sid_new
-                            st.session_state.active_client = client_new
-                            st.session_state.df            = df
-                            st.session_state.save_counter  = 0
-                            st.session_state.selected_idx  = None
-                            save_audit_db(sid_new, CU, client_new, df)
-                            set_local_storage("bdo_sid",     sid_new)
-                            set_local_storage("bdo_client",  client_new)
-                            set_local_storage("bdo_df",      df_to_json(df))
-                            set_local_storage("bdo_counter", "0")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Failed to read file: {e}")
-
-    # ── MY SESSIONS ──
-    with t2:
-        with st.container(border=True):
-            section("My Sessions")
-            history = get_user_sessions(CU)
-            if history.empty:
-                st.info("No saved sessions yet.")
-            else:
-                for _, row in history.iterrows():
-                    c1, c2 = st.columns([3, 1])
-                    with c1:
-                        st.markdown(f"""
-                        <div style="padding:4px 0">
-                          <div style="font-weight:600;font-size:0.9rem">{row['sid']}</div>
-                          <div style="font-size:0.77rem;color:#8A9BAE">{row['client'] or '—'} · {row['updated'] or '—'}</div>
-                        </div>""", unsafe_allow_html=True)
-                    with c2:
-                        if st.button("Load", key=f"load_{row['sid']}", use_container_width=True):
-                            loaded = load_audit_db(row["sid"])
-                            if loaded is not None:
-                                st.session_state.active_sid    = row["sid"]
-                                st.session_state.active_client = row["client"]
-                                st.session_state.df            = loaded
-                                st.session_state.save_counter  = 0
-                                st.session_state.selected_idx  = None
-                                set_local_storage("bdo_sid",     row["sid"])
-                                set_local_storage("bdo_client",  row["client"] or "")
-                                set_local_storage("bdo_df",      df_to_json(loaded))
-                                set_local_storage("bdo_counter", "0")
-                                st.rerun()
-                            else:
-                                st.error("Could not load session.")
-
-    # ── ADMIN PANEL ──
-    if IS_ADMIN:
-        t3 = tab_objs[2]
-        with t3:
-            at1, at2 = st.tabs(["  👥  Users  ", "  📋  All Sessions  "])
-
-            with at1:
-                with st.container(border=True):
-                    section("All Users")
-                    all_users = get_all_users()
-                    for _, u in all_users.iterrows():
-                        uc1, uc2, uc3 = st.columns([3, 1, 1])
-                        with uc1:
-                            role = "🔑 Admin" if u["is_admin"] else "📦 Counter"
-                            st.markdown(
-                                f'<div style="padding:6px 0">'
-                                f'<div style="font-weight:600;font-size:0.9rem">{u["username"]}</div>'
-                                f'<div style="font-size:0.76rem;color:#8A9BAE">{role} · joined {u["created"] or "—"}</div>'
-                                f'</div>', unsafe_allow_html=True)
-                        with uc2:
-                            if u["username"] != CU:
-                                new_role = not bool(u["is_admin"])
-                                btn_label = "→ Counter" if u["is_admin"] else "→ Admin"
-                                if st.button(btn_label, key=f"role_{u['username']}", use_container_width=True):
-                                    set_admin(u["username"], new_role)
-                                    st.rerun()
-                            else:
-                                st.caption("(you)")
-                        with uc3:
-                            if u["username"] != CU:
-                                if st.button("Remove", key=f"del_{u['username']}", use_container_width=True):
-                                    delete_user(u["username"])
-                                    st.rerun()
-
-            with at2:
-                with st.container(border=True):
-                    section("All Sessions")
-                    all_sess = get_all_sessions_admin()
-                    if all_sess.empty:
-                        st.info("No sessions yet.")
-                    else:
-                        for _, row in all_sess.iterrows():
-                            st.markdown(
-                                f'<div style="padding:6px 0">'
-                                f'<div style="font-weight:600;font-size:0.9rem">{row["sid"]}</div>'
-                                f'<div style="font-size:0.76rem;color:#8A9BAE">👤 {row["username"]} · 📍 {row["client"] or "—"} · 🕐 {row["updated"] or "—"}</div>'
-                                f'</div>', unsafe_allow_html=True)
-                            st.markdown('<hr style="border:none;border-top:1px solid #F0F2F6;margin:4px 0">', unsafe_allow_html=True)
-
-    st.stop()
-
-
-# ═══════════════════════════════════════════════════════════════════
-#  COUNTING SCREEN
-# ═══════════════════════════════════════════════════════════════════
-sid = st.session_state.active_sid
-
-updated_mask = st.session_state.df["last_updated"] != ""
-total   = len(st.session_state.df)
-counted = int(updated_mask.sum())
-n_vars  = int(((st.session_state.df["difference"] != 0) & updated_mask).sum())
-pct     = round(counted / total * 100, 1) if total else 0.0
-
-render_header(username=CU, session_id=sid, is_admin=IS_ADMIN)
-sync_status(st.session_state.save_counter)
-
-with st.container(border=True):
-    section("Count Overview")
-    m1, m2, m3 = st.columns(3)
-    m1.markdown(f'<div class="stat-box"><div class="stat-label">Total</div><div class="stat-value">{total}</div></div>', unsafe_allow_html=True)
-    m2.markdown(f'<div class="stat-box"><div class="stat-label">Counted</div><div class="stat-value">{counted}</div></div>', unsafe_allow_html=True)
-    m3.markdown(f'<div class="stat-box"><div class="stat-label">Variances</div><div class="stat-value" style="color:#DC2626">{n_vars}</div></div>', unsafe_allow_html=True)
-    st.markdown(f"""
-    <div class="prog-wrap">
-      <div class="prog-head"><span>Progress</span><span><b style="color:#002855">{pct}%</b></span></div>
-      <div class="prog-track"><div class="prog-fill" style="width:{pct}%"></div></div>
-    </div>""", unsafe_allow_html=True)
-
-# ── SEARCH ──
-with st.container(border=True):
-    section("Enter Count")
-    search = st.text_input("Search", placeholder="🔍  Product name or code…",
-                           label_visibility="collapsed", key="search_input")
-
-    if search and len(search.strip()) >= 1:
-        q    = search.strip()
-        mask = (st.session_state.df["product name"].str.contains(q, case=False, na=False) |
-                st.session_state.df["product code"].str.contains(q, case=False, na=False))
-        matches = st.session_state.df.loc[mask].head(20)
-
-        if matches.empty:
-            st.warning("No products found.")
-        else:
-            st.caption(f"{len(matches)} result{'s' if len(matches)!=1 else ''} — tap to select")
-            for row_idx in matches.index:
-                r    = st.session_state.df.loc[row_idx]
-                tick = "✅ " if r["last_updated"] else ""
-                if st.button(f"{tick}{r['product code']}  —  {r['product name']}",
-                             key=f"pick_{row_idx}", use_container_width=True):
-                    st.session_state.selected_idx = int(row_idx)
-                    st.rerun()
-
-# ── COUNT ENTRY ──
-if st.session_state.get("selected_idx") is not None:
-    idx = st.session_state.selected_idx
-    if idx in st.session_state.df.index:
-        r         = st.session_state.df.loc[idx]
-        sys_qty   = int(r["systems count"])
-        prev_phys = int(r["physical count"])
-
-        with st.container(border=True):
-            section("Physical Count")
-            st.markdown(f"""
-            <div class="product-card">
-              <div class="pc-code">{r['product code']}</div>
-              <div class="pc-name">{r['product name']}</div>
-            </div>""", unsafe_allow_html=True)
-
-            if r["last_updated"]:
-                st.caption(f"⏱ Last saved: {r['last_updated']}")
-
-            q1, q2, q3 = st.columns(3)
-            with q1:
-                st.markdown(f'<div class="stat-box"><div class="stat-label">System Qty</div><div class="stat-value">{sys_qty}</div></div>', unsafe_allow_html=True)
-            with q2:
-                phys_val = st.number_input("Physical Count", value=prev_phys,
-                                           min_value=0, step=1, key=f"p_{idx}")
-            with q3:
-                diff = phys_val - sys_qty
-                cls  = "positive" if diff > 0 else "negative" if diff < 0 else "neutral"
-                sign = "+" if diff > 0 else ""
-                st.markdown(f'<div class="vbox {cls}"><div class="vbox-label">Variance</div><div class="vbox-value">{sign}{diff}</div></div>', unsafe_allow_html=True)
-
-            # Live variance JS (cosmetic)
-            st.components.v1.html(f"""
-            <script>
-            (function(){{
-              const sys={sys_qty};
-              function attach(){{
-                const inputs=window.parent.document.querySelectorAll('input[type="number"]');
-                let physIn=null;
-                inputs.forEach(el=>{{if(el.closest('[data-testid="stNumberInput"]'))physIn=el;}});
-                const vboxes=window.parent.document.querySelectorAll('.vbox-value');
-                const vbox=vboxes[vboxes.length-1];
-                const vboxEl=vbox?vbox.closest('.vbox'):null;
-                if(!physIn||!vbox)return;
-                physIn.addEventListener('input',function(){{
-                  const d=parseInt(physIn.value)||0-sys;
-                  const diff=(parseInt(physIn.value)||0)-sys;
-                  vbox.textContent=diff>0?'+'+diff:String(diff);
-                  if(diff>0){{vboxEl.style.background='#ECFDF5';vboxEl.style.borderColor='#6EE7B7';vbox.style.color='#059669';}}
-                  else if(diff<0){{vboxEl.style.background='#FEF2F2';vboxEl.style.borderColor='#FCA5A5';vbox.style.color='#DC2626';}}
-                  else{{vboxEl.style.background='#F4F6FA';vboxEl.style.borderColor='#E2E8F0';vbox.style.color='#0D1B2A';}}
-                }});
-              }}
-              attach();setTimeout(attach,500);
-            }})();
-            </script>""", height=0)
-
-            b1, b2 = st.columns(2)
-            with b1:
-                if st.button("💾  Save Count", use_container_width=True):
-                    now  = datetime.now().strftime("%H:%M:%S")
-                    diff = phys_val - sys_qty
-                    st.session_state.df.at[idx, "physical count"] = phys_val
-                    st.session_state.df.at[idx, "difference"]     = diff
-                    st.session_state.df.at[idx, "last_updated"]   = now
-                    st.session_state.save_counter += 1
-                    st.session_state.selected_idx  = None
-
-                    set_local_storage("bdo_df",      df_to_json(st.session_state.df))
-                    set_local_storage("bdo_counter", str(st.session_state.save_counter))
-
-                    p_code = str(r["product code"])
-                    if st.session_state.save_counter % 10 == 0:
-                        save_audit_db(sid, CU, st.session_state.get("active_client",""), st.session_state.df)
-                        st.toast(f"✅ {p_code} · ☁️ backed up!")
-                    else:
-                        left = 10 - (st.session_state.save_counter % 10)
-                        st.toast(f"✅ {p_code} saved · backup in {left}")
-                    st.rerun()
-            with b2:
-                if st.button("✖  Cancel", use_container_width=True):
-                    st.session_state.selected_idx = None
-                    st.rerun()
-
-# ── RECENT COUNTS ──
-recent_mask = st.session_state.df["last_updated"] != ""
-if recent_mask.any():
-    recent = (st.session_state.df.loc[recent_mask,
-              ["product name","product code","difference","last_updated"]]
-              .sort_values("last_updated", ascending=False).head(5))
+# ── NEW COUNT ──────────────────────────────────────────────────────
+with t_new:
     with st.container(border=True):
-        section("Recent Counts")
-        for _, r in recent.iterrows():
-            d = int(r["difference"])
-            badge = (f'<span class="badge-pos">+{d}</span>' if d > 0 else
-                     f'<span class="badge-neg">{d}</span>'  if d < 0 else
-                     f'<span class="badge-zero">±0</span>')
-            st.markdown(f"""
-            <div class="log-row">
-              <div class="log-left">
-                <div class="log-name">{r['product name']}</div>
-                <div class="log-meta">{r['product code']} · {r['last_updated']}</div>
-              </div>
-              <div class="log-badge">{badge}</div>
-            </div>""", unsafe_allow_html=True)
+        section("Session Details")
+        sid_in  = st.text_input("Session ID",           placeholder="e.g. SC-2026-001")
+        loc_in  = st.text_input("Warehouse / Location", placeholder="e.g. Main Warehouse")
 
-# ── FOOTER ──
-st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-fa1, fa2, fa3 = st.columns(3)
+    # Mode selection cards
+    st.markdown("""
+    <div class="section-label" style="margin-top:4px">Choose Count Type</div>
+    <div class="mode-card s2f">
+      <div class="mode-icon">📋➡️📦</div>
+      <div class="mode-title">Sheet to Floor</div>
+      <div class="mode-desc">You have a system stock list. Walk the warehouse and verify
+      what's physically there against your system quantities. Variances are calculated automatically.</div>
+      <div class="mode-excel">
+        Excel needs: <code>product code</code> <code>product name</code> <code>systems count</code>
+      </div>
+    </div>
+    <div class="mode-card f2s">
+      <div class="mode-icon">📦➡️📋</div>
+      <div class="mode-title" style="color:#065F46">Floor to Sheet</div>
+      <div class="mode-desc">You have a product list but no system quantities. Walk the warehouse,
+      count what you find, and build the count sheet from scratch.</div>
+      <div class="mode-excel">
+        Excel needs: <code>product code</code> <code>product name</code> &nbsp;— no system count column needed
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-with fa1:
-    out_all = io.BytesIO()
-    with pd.ExcelWriter(out_all, engine="openpyxl") as w:
-        st.session_state.df.to_excel(w, index=False, sheet_name="Stock Count")
-    st.download_button("📤 Export All", out_all.getvalue(),
-        file_name=f"{sid}_StockCount_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True)
+    file_in = st.file_uploader("Upload Excel Sheet (.xlsx)", type=["xlsx"])
+    if file_in: st.caption(f"📎 {file_in.name} — ready")
 
-with fa2:
-    out_var = io.BytesIO()
-    with pd.ExcelWriter(out_var, engine="openpyxl") as w:
-        st.session_state.df[st.session_state.df["difference"] != 0].to_excel(
-            w, index=False, sheet_name="Variances")
-    st.download_button("⚠️ Variances", out_var.getvalue(),
-        file_name=f"{sid}_Variances_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True)
+    c1, c2 = st.columns(2)
 
-with fa3:
-    if st.button("☁️ Backup Now", use_container_width=True):
-        save_audit_db(sid, CU, st.session_state.get("active_client",""), st.session_state.df)
-        set_local_storage("bdo_counter", "0")
-        st.session_state.save_counter = 0
-        st.toast("☁️ Backed up to cloud!")
-        st.rerun()
+    with c1:
+        if st.button("📋➡️📦  Sheet to Floor", use_container_width=True):
+            if not sid_in:   st.warning("Please enter a Session ID.")
+            elif not file_in: st.warning("Please upload your Excel sheet.")
+            else:
+                if run("SELECT 1 FROM audit_sessions WHERE sid=%s",(sid_in,),fetch="one"):
+                    st.error(f"Session **{sid_in}** already exists.")
+                else:
+                    try:
+                        df = pd.read_excel(file_in)
+                        df.columns = [c.strip().lower() for c in df.columns]
+                        needed = {"product code","product name","systems count"}
+                        missing = needed - set(df.columns)
+                        if missing:
+                            st.error(f"Missing columns: {', '.join(missing)}")
+                        else:
+                            df["product code"]   = df["product code"].astype(str).str.strip()
+                            df["product name"]   = df["product name"].astype(str).str.strip()
+                            df["systems count"]  = pd.to_numeric(df["systems count"],errors="coerce").fillna(0)
+                            df["physical count"] = 0
+                            df["difference"]     = 0
+                            df["last_updated"]   = ""
+                            save_session(sid_in, CU, loc_in, df, mode="sheet_to_floor")
+                            set_ls("bdo_sid",    sid_in)
+                            set_ls("bdo_client", loc_in)
+                            set_ls("bdo_mode",   "sheet_to_floor")
+                            st.switch_page("pages/sheet_to_floor.py")
+                    except Exception as e:
+                        st.error(f"Failed to read file: {e}")
 
-st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+    with c2:
+        if st.button("📦➡️📋  Floor to Sheet", use_container_width=True):
+            if not sid_in:   st.warning("Please enter a Session ID.")
+            elif not file_in: st.warning("Please upload your Excel sheet.")
+            else:
+                if run("SELECT 1 FROM audit_sessions WHERE sid=%s",(sid_in,),fetch="one"):
+                    st.error(f"Session **{sid_in}** already exists.")
+                else:
+                    try:
+                        df = pd.read_excel(file_in)
+                        df.columns = [c.strip().lower() for c in df.columns]
+                        needed = {"product code","product name"}
+                        missing = needed - set(df.columns)
+                        if missing:
+                            st.error(f"Missing columns: {', '.join(missing)}")
+                        else:
+                            df["product code"]   = df["product code"].astype(str).str.strip()
+                            df["product name"]   = df["product name"].astype(str).str.strip()
+                            df["physical count"] = 0
+                            df["last_updated"]   = ""
+                            save_session(sid_in, CU, loc_in, df, mode="floor_to_sheet")
+                            set_ls("bdo_sid",    sid_in)
+                            set_ls("bdo_client", loc_in)
+                            set_ls("bdo_mode",   "floor_to_sheet")
+                            st.switch_page("pages/floor_to_sheet.py")
+                    except Exception as e:
+                        st.error(f"Failed to read file: {e}")
 
-if st.button("🚪 Save & Close", use_container_width=True):
-    save_audit_db(sid, CU, st.session_state.get("active_client",""), st.session_state.df)
-    clear_local_storage()
-    set_local_storage("bdo_user", CU)
-    for k in ["active_sid","active_client","df","save_counter","selected_idx"]:
-        st.session_state.pop(k, None)
-    st.query_params.clear()
-    st.rerun()
+
+# ── MY SESSIONS ────────────────────────────────────────────────────
+with t_my:
+    with st.container(border=True):
+        section("My Sessions")
+        history = get_user_sessions(CU)
+        if history.empty:
+            st.info("No sessions yet. Create one in the New Count tab.")
+        else:
+            for _, row in history.iterrows():
+                mode     = row.get("mode","sheet_to_floor")
+                pill     = ('<span class="mode-pill-s2f">Sheet→Floor</span>' if mode=="sheet_to_floor"
+                            else '<span class="mode-pill-f2s">Floor→Sheet</span>')
+                c1, c2 = st.columns([3,1])
+                with c1:
+                    st.markdown(f"""
+                    <div style="padding:4px 0">
+                      <div class="sess-sid">{pill}{row['sid']}</div>
+                      <div class="sess-meta">📍 {row['client'] or '—'} · 🕐 {row['updated'] or '—'}</div>
+                    </div>""", unsafe_allow_html=True)
+                with c2:
+                    if st.button("▶ Open", key=f"open_{row['sid']}", use_container_width=True):
+                        set_ls("bdo_sid",    row["sid"])
+                        set_ls("bdo_client", row["client"] or "")
+                        set_ls("bdo_mode",   mode)
+                        target = ("pages/sheet_to_floor.py" if mode=="sheet_to_floor"
+                                  else "pages/floor_to_sheet.py")
+                        st.switch_page(target)
+
+
+# ── ADMIN PANEL ────────────────────────────────────────────────────
+if IS_ADMIN:
+    with tabs[2]:
+        at1, at2 = st.tabs(["  👥  Users  ","  📋  All Sessions  "])
+        with at1:
+            with st.container(border=True):
+                section("All Users")
+                for _, u in get_all_users().iterrows():
+                    uc1, uc2, uc3 = st.columns([3,1,1])
+                    with uc1:
+                        role = "🔑 Admin" if u["is_admin"] else "📦 Counter"
+                        st.markdown(f"""
+                        <div style="padding:6px 0">
+                          <div style="font-weight:600;font-size:.9rem">{u['username']}</div>
+                          <div style="font-size:.76rem;color:#8A9BAE">{role} · joined {u['created'] or '—'}</div>
+                        </div>""", unsafe_allow_html=True)
+                    with uc2:
+                        if u["username"] != CU:
+                            label = "→ Counter" if u["is_admin"] else "→ Admin"
+                            if st.button(label, key=f"role_{u['username']}", use_container_width=True):
+                                set_admin(u["username"], not bool(u["is_admin"]))
+                                st.rerun()
+                        else:
+                            st.caption("(you)")
+                    with uc3:
+                        if u["username"] != CU:
+                            if st.button("Remove", key=f"del_{u['username']}", use_container_width=True):
+                                delete_user(u["username"]); st.rerun()
+
+        with at2:
+            with st.container(border=True):
+                section("All Sessions")
+                all_s = get_all_sessions()
+                if all_s.empty:
+                    st.info("No sessions yet.")
+                else:
+                    for _, row in all_s.iterrows():
+                        mode = row.get("mode","sheet_to_floor")
+                        pill = ('<span class="mode-pill-s2f">Sheet→Floor</span>' if mode=="sheet_to_floor"
+                                else '<span class="mode-pill-f2s">Floor→Sheet</span>')
+                        st.markdown(f"""
+                        <div style="padding:6px 0">
+                          <div style="font-weight:600;font-size:.9rem">{pill} {row['sid']}</div>
+                          <div style="font-size:.76rem;color:#8A9BAE">
+                            👤 {row['username']} · 📍 {row['client'] or '—'} · 🕐 {row['updated'] or '—'}
+                          </div>
+                        </div>
+                        <hr style="border:none;border-top:1px solid #F0F2F6;margin:4px 0">
+                        """, unsafe_allow_html=True)
