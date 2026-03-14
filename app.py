@@ -218,6 +218,9 @@ def get_all_sessions():
     rows = run("SELECT sid,username,client,updated,mode FROM audit_sessions ORDER BY updated DESC", fetch="all")
     return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["sid","username","client","updated","mode"])
 
+def delete_session(sid):
+    run("DELETE FROM audit_sessions WHERE sid=%s", (sid,))
+
 
 # ── LOCAL STORAGE ──────────────────────────────────────────────────
 def set_ls(key, value):
@@ -461,27 +464,54 @@ with t_my:
                 mode     = row.get("mode","sheet_to_floor")
                 pill     = ('<span class="mode-pill-s2f">Sheet→Floor</span>' if mode=="sheet_to_floor"
                             else '<span class="mode-pill-f2s">Floor→Sheet</span>')
-                c1, c2 = st.columns([3,1])
-                with c1:
+                sid_key  = row["sid"]
+                confirm_key = f"confirm_del_{sid_key}"
+
+                with st.container(border=True):
                     st.markdown(f"""
-                    <div style="padding:4px 0">
-                      <div class="sess-sid">{pill}{row['sid']}</div>
+                    <div style="padding:2px 0 6px 0">
+                      <div class="sess-sid">{pill} {sid_key}</div>
                       <div class="sess-meta">📍 {row['client'] or '—'} · 🕐 {row['updated'] or '—'}</div>
                     </div>""", unsafe_allow_html=True)
-                with c2:
-                    if st.button("▶ Open", key=f"open_{row['sid']}", use_container_width=True):
-                        db_row = run("SELECT data,client FROM audit_sessions WHERE sid=%s",
-                                     (row["sid"],), fetch="one")
-                        if db_row:
-                            try:    df_open = pd.read_pickle(io.BytesIO(bytes(db_row["data"])), compression="gzip")
-                            except: df_open = pd.read_pickle(io.BytesIO(bytes(db_row["data"])))
-                            st.session_state.active_sid  = row["sid"]
-                            st.session_state.active_loc  = db_row["client"] or ""
-                            st.session_state.active_mode = mode
-                            st.session_state.active_df   = df_open
-                            target = ("pages/sheet_to_floor.py" if mode=="sheet_to_floor"
-                                      else "pages/floor_to_sheet.py")
-                            st.switch_page(target)
+
+                    # Show confirm warning if delete was clicked
+                    if st.session_state.get(confirm_key):
+                        st.warning(
+                            f"⚠️ **All data for session `{sid_key}` will be permanently deleted** "
+                            f"and cannot be recovered. Are you sure?")
+                        ca, cb = st.columns(2)
+                        with ca:
+                            if st.button("✅ Yes, Delete Permanently",
+                                         key=f"confirm_yes_{sid_key}", use_container_width=True):
+                                delete_session(sid_key)
+                                st.session_state.pop(confirm_key, None)
+                                st.success(f"Session `{sid_key}` deleted.")
+                                st.rerun()
+                        with cb:
+                            if st.button("✖ Cancel",
+                                         key=f"confirm_no_{sid_key}", use_container_width=True):
+                                st.session_state.pop(confirm_key, None)
+                                st.rerun()
+                    else:
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            if st.button("▶ Open", key=f"open_{sid_key}", use_container_width=True):
+                                db_row = run("SELECT data,client FROM audit_sessions WHERE sid=%s",
+                                             (sid_key,), fetch="one")
+                                if db_row:
+                                    try:    df_open = pd.read_pickle(io.BytesIO(bytes(db_row["data"])), compression="gzip")
+                                    except: df_open = pd.read_pickle(io.BytesIO(bytes(db_row["data"])))
+                                    st.session_state.active_sid  = sid_key
+                                    st.session_state.active_loc  = db_row["client"] or ""
+                                    st.session_state.active_mode = mode
+                                    st.session_state.active_df   = df_open
+                                    target = ("pages/sheet_to_floor.py" if mode=="sheet_to_floor"
+                                              else "pages/floor_to_sheet.py")
+                                    st.switch_page(target)
+                        with c2:
+                            if st.button("🗑 Delete", key=f"del_{sid_key}", use_container_width=True):
+                                st.session_state[confirm_key] = True
+                                st.rerun()
 
 
 # ── ADMIN PANEL ────────────────────────────────────────────────────
@@ -521,15 +551,39 @@ if IS_ADMIN:
                     st.info("No sessions yet.")
                 else:
                     for _, row in all_s.iterrows():
-                        mode = row.get("mode","sheet_to_floor")
-                        pill = ('<span class="mode-pill-s2f">Sheet→Floor</span>' if mode=="sheet_to_floor"
-                                else '<span class="mode-pill-f2s">Floor→Sheet</span>')
-                        st.markdown(f"""
-                        <div style="padding:6px 0">
-                          <div style="font-weight:600;font-size:.9rem">{pill} {row['sid']}</div>
-                          <div style="font-size:.76rem;color:#8A9BAE">
-                            👤 {row['username']} · 📍 {row['client'] or '—'} · 🕐 {row['updated'] or '—'}
-                          </div>
-                        </div>
-                        <hr style="border:none;border-top:1px solid #F0F2F6;margin:4px 0">
-                        """, unsafe_allow_html=True)
+                        mode     = row.get("mode","sheet_to_floor")
+                        pill     = ('<span class="mode-pill-s2f">Sheet→Floor</span>' if mode=="sheet_to_floor"
+                                    else '<span class="mode-pill-f2s">Floor→Sheet</span>')
+                        sid_key  = row["sid"]
+                        aconfirm = f"admin_confirm_del_{sid_key}"
+
+                        with st.container(border=True):
+                            st.markdown(f"""
+                            <div style="padding:2px 0 6px 0">
+                              <div style="font-weight:600;font-size:.9rem">{pill} {sid_key}</div>
+                              <div style="font-size:.76rem;color:#8A9BAE">
+                                👤 {row['username']} · 📍 {row['client'] or '—'} · 🕐 {row['updated'] or '—'}
+                              </div>
+                            </div>""", unsafe_allow_html=True)
+
+                            if st.session_state.get(aconfirm):
+                                st.warning(
+                                    f"⚠️ **All data for session `{sid_key}` will be permanently deleted** "
+                                    f"and cannot be recovered. Are you sure?")
+                                ac1, ac2 = st.columns(2)
+                                with ac1:
+                                    if st.button("✅ Yes, Delete Permanently",
+                                                 key=f"aconfirm_yes_{sid_key}", use_container_width=True):
+                                        delete_session(sid_key)
+                                        st.session_state.pop(aconfirm, None)
+                                        st.success(f"Session `{sid_key}` deleted.")
+                                        st.rerun()
+                                with ac2:
+                                    if st.button("✖ Cancel",
+                                                 key=f"aconfirm_no_{sid_key}", use_container_width=True):
+                                        st.session_state.pop(aconfirm, None)
+                                        st.rerun()
+                            else:
+                                if st.button(f"🗑 Delete", key=f"adel_{sid_key}", use_container_width=True):
+                                    st.session_state[aconfirm] = True
+                                    st.rerun()
